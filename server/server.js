@@ -41,6 +41,38 @@ app.use('/api/items', require('./routes/items'));
 app.use('/api/orders', require('./routes/orders'));
 app.use('/api/public/menu', require('./routes/menu'));
 
+// Diagnostics and Health check endpoint
+app.get('/api/test-db', async (req, res) => {
+  const supabase = require('./config/supabase');
+  const diagnostics = {
+    supabase_url_exists: !!process.env.SUPABASE_URL,
+    supabase_key_exists: !!process.env.SUPABASE_KEY,
+    supabase_url_val: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 15) + '...' : null,
+    supabase_key_length: process.env.SUPABASE_KEY ? process.env.SUPABASE_KEY.length : 0,
+    db_mode: process.env.SUPABASE_URL && process.env.SUPABASE_KEY ? 'Official Supabase' : 'Offline/db.json file',
+  };
+
+  try {
+    const start = Date.now();
+    const { data, error } = await supabase.from('profiles').select('id').limit(1);
+    
+    diagnostics.query_time_ms = Date.now() - start;
+    
+    if (error) {
+      diagnostics.query_success = false;
+      diagnostics.database_error = error;
+    } else {
+      diagnostics.query_success = true;
+      diagnostics.profiles_count = data ? data.length : 0;
+    }
+  } catch (err) {
+    diagnostics.query_success = false;
+    diagnostics.exception = err.message || err;
+  }
+
+  res.json(diagnostics);
+});
+
 // Default base route
 app.get('/', (req, res) => {
   res.json({ message: 'QR Menu SaaS API is running smoothly.' });
