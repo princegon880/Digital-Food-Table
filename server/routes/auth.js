@@ -99,7 +99,11 @@ router.post('/register', async (req, res) => {
 
     if (dbError) {
       // Clean up created auth user if db insert fails
-      await supabase.auth.admin.deleteUser(authData.user.id);
+      try {
+        await supabase.auth.admin.deleteUser(authData.user.id);
+      } catch (cleanUpError) {
+        console.error('Failed to clean up auth user after db error:', cleanUpError.message);
+      }
       return res.status(500).json({ error: 'Failed to create profile: ' + dbError.message });
     }
 
