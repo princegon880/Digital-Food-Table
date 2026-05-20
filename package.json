@@ -1,0 +1,15 @@
+{
+  "name": "food-saas-root",
+  "version": "1.0.0",
+  "description": "QR Menu SaaS Platform with Supabase, Express, and React",
+  "scripts": {
+    "install-all": "npm install && npm run install-client && npm run install-server",
+    "install-client": "npm install --prefix client --legacy-peer-deps",
+    "install-server": "npm install --prefix server",
+    "dev": "concurrently \"npm run dev --prefix client\" \"npm start --prefix server\"",
+    "build": "npm run build --prefix client"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
