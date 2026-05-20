@@ -54,7 +54,7 @@ app.get('/api/test-db', async (req, res) => {
 
   try {
     const start = Date.now();
-    const { data, error } = await supabase.from('profiles').select('id').limit(1);
+    const { data, error } = await supabase.from('profiles').select('restaurant_name, slug');
     
     diagnostics.query_time_ms = Date.now() - start;
     
@@ -64,6 +64,7 @@ app.get('/api/test-db', async (req, res) => {
     } else {
       diagnostics.query_success = true;
       diagnostics.profiles_count = data ? data.length : 0;
+      diagnostics.profiles = data;
     }
   } catch (err) {
     diagnostics.query_success = false;
