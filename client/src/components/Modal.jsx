@@ -48,10 +48,13 @@ export default function Modal({ isOpen, onClose, title, children }) {
 
         .modal-content {
           width: 100%;
-          max-width: 500px;
+          max-width: 520px;
+          max-height: 90vh;
           border-radius: var(--radius-lg);
           box-shadow: var(--shadow-lg);
           overflow: hidden;
+          display: flex;
+          flex-direction: column;
           background: var(--bg-card-dark-trans);
           border: 1px solid var(--border-dark);
           animation: modalSlideUp 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
@@ -89,8 +92,21 @@ export default function Modal({ isOpen, onClose, title, children }) {
 
         .modal-body {
           padding: 24px;
-          max-height: 80vh;
           overflow-y: auto;
+          flex: 1;
+          /* Custom scrollbar */
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255,255,255,0.15) transparent;
+        }
+        .modal-body::-webkit-scrollbar {
+          width: 5px;
+        }
+        .modal-body::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .modal-body::-webkit-scrollbar-thumb {
+          background: rgba(255,255,255,0.15);
+          border-radius: 10px;
         }
 
         @keyframes modalSlideUp {

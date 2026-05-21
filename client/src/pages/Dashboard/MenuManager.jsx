@@ -169,7 +169,7 @@ export default function MenuManager() {
       const submission = {
         ...itemForm,
         imageUrl: finalImageUrl,
-        price: parseFloat(itemForm.price)
+        price: Math.round(parseFloat(itemForm.price) * 100) / 100
       };
 
       if (itemModal.mode === 'create') {
@@ -447,7 +447,8 @@ export default function MenuManager() {
               <label className="form-label">Price ({profile.currency || '₹'})</label>
               <input 
                 type="number"
-                step="0.01"
+                step="1"
+                min="0"
                 className="form-control"
                 placeholder="250"
                 value={itemForm.price}
