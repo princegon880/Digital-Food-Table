@@ -74,6 +74,22 @@ app.get('/api/test-db', async (req, res) => {
   res.json(diagnostics);
 });
 
+// Get Server Network IP Address
+app.get('/api/server-ip', (req, res) => {
+  const os = require('os');
+  const networkInterfaces = os.networkInterfaces();
+  let localIp = 'localhost';
+  for (const interfaceName in networkInterfaces) {
+    for (const iface of networkInterfaces[interfaceName]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        localIp = iface.address;
+        break;
+      }
+    }
+  }
+  res.json({ ip: localIp });
+});
+
 // Default base route
 app.get('/', (req, res) => {
   res.json({ message: 'QR Menu SaaS API is running smoothly.' });

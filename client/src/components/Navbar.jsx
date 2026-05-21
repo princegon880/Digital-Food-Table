@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
@@ -14,7 +14,22 @@ import {
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const profile = JSON.parse(localStorage.getItem('profile') || '{}');
+  const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
+
+  useEffect(() => {
+    async function syncProfile() {
+      try {
+        const data = await api.get('/auth/me');
+        if (data && data.profile) {
+          localStorage.setItem('profile', JSON.stringify(data.profile));
+          setProfile(data.profile);
+        }
+      } catch (err) {
+        console.error('Failed to sync profile in Navbar:', err);
+      }
+    }
+    syncProfile();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('token');

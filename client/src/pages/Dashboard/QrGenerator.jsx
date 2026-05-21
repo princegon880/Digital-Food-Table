@@ -7,16 +7,48 @@ import {
   Sparkles, 
   HelpCircle
 } from 'lucide-react';
+import { api } from '../../utils/api';
 
 export default function QrGenerator() {
   const [tableNumber, setTableNumber] = useState('1');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [serverIp, setServerIp] = useState('');
+  const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
   const printAreaRef = useRef();
 
-  const profile = JSON.parse(localStorage.getItem('profile') || '{}');
+  useEffect(() => {
+    async function fetchServerIpAndProfile() {
+      try {
+        const [ipData, meData] = await Promise.all([
+          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? api.get('/server-ip').catch(() => null)
+            : Promise.resolve(null),
+          api.get('/auth/me').catch(() => null)
+        ]);
+
+        if (ipData && ipData.ip && ipData.ip !== 'localhost') {
+          setServerIp(ipData.ip);
+        }
+
+        if (meData && meData.profile) {
+          localStorage.setItem('profile', JSON.stringify(meData.profile));
+          setProfile(meData.profile);
+        }
+      } catch (err) {
+        console.error('Failed to fetch data in QR Generator:', err);
+      }
+    }
+
+    fetchServerIpAndProfile();
+  }, []);
+
   // Always use the production domain for QR codes so they work when scanned
-  // Falls back to current origin only for local development
-  const appOrigin = import.meta.env.VITE_APP_URL || window.location.origin;
+  // Falls back to local network IP or current origin for local development
+  const appOrigin = import.meta.env.VITE_APP_URL || (
+    serverIp 
+      ? `http://${serverIp}:5173` 
+      : window.location.origin
+  );
 
   const formattedSlug = profile.slug || 'demo-restaurant';
   const qrUrl = `${appOrigin}/menu/${formattedSlug}?table=${tableNumber}`;

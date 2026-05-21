@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { api } from '../utils/api';
 import { 
   ShoppingBag, 
@@ -118,6 +118,14 @@ export default function CustomerMenu() {
 
     loadMenu();
   }, [slug]);
+
+  useEffect(() => {
+    if (restaurant && restaurant.restaurant_name) {
+      document.title = `${restaurant.restaurant_name} | Digital Menu`;
+    } else {
+      document.title = 'Digital Menu';
+    }
+  }, [restaurant]);
 
   // Sync table number query param if it changes
   const [prevTableParam, setPrevTableParam] = useState(tableParam);
@@ -309,11 +317,15 @@ export default function CustomerMenu() {
   }
 
   if (error) {
+    const isNotFound = error.toLowerCase().includes('not found') || error.toLowerCase().includes('required');
     return (
       <div className="menu-client-error text-center">
         <Inbox size={48} className="empty-icon" />
-        <h2>Menu Temporarily Unavailable</h2>
-        <p>{error}</p>
+        <h2>{isNotFound ? 'Restaurant Not Found' : 'Menu Temporarily Unavailable'}</h2>
+        <p>{isNotFound ? "We couldn't find the restaurant you are looking for. Please scan the QR code or verify the URL and try again." : error}</p>
+        <Link to="/" className="btn-primary error-home-btn">
+          Back to Home
+        </Link>
         <style>{`
           .menu-client-error {
             display: flex;
@@ -343,6 +355,23 @@ export default function CustomerMenu() {
             color: #71717a;
             max-width: 320px;
             line-height: 1.5;
+            margin-bottom: 24px;
+          }
+          .error-home-btn {
+            background: var(--gradient-brand, linear-gradient(90deg, #ff4e00 0%, #ec008c 100%));
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            text-decoration: none;
+            border: none;
+            box-shadow: 0 4px 14px rgba(255, 78, 0, 0.3);
+            transition: all 0.2s ease;
+          }
+          .error-home-btn:hover {
+            transform: translateY(-2px);
+            opacity: 0.9;
           }
         `}</style>
       </div>

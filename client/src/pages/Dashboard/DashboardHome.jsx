@@ -14,20 +14,29 @@ export default function DashboardHome() {
     categoriesCount: 0
   });
   const [loading, setLoading] = useState(true);
-  const profile = JSON.parse(localStorage.getItem('profile') || '{}');
+  const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
 
   useEffect(() => {
     async function fetchStats() {
       try {
-        const [items, categories] = await Promise.all([
+        const [items, categories, meData] = await Promise.all([
           api.get('/items'),
-          api.get('/categories')
+          api.get('/categories'),
+          api.get('/auth/me').catch(err => {
+            console.error('Failed to fetch profile in DashboardHome:', err);
+            return null;
+          })
         ]);
 
         setStats({
           itemsCount: items.length,
           categoriesCount: categories.length
         });
+
+        if (meData && meData.profile) {
+          localStorage.setItem('profile', JSON.stringify(meData.profile));
+          setProfile(meData.profile);
+        }
       } catch (err) {
         console.error('Failed to load dashboard stats', err);
       } finally {
