@@ -17,7 +17,9 @@ export default function QrGenerator() {
   const printAreaRef = useRef();
 
   const profile = JSON.parse(localStorage.getItem('profile') || '{}');
-  const appOrigin = window.location.origin;
+  // Always use the production domain for QR codes so they work when scanned
+  // Falls back to current origin only for local development
+  const appOrigin = import.meta.env.VITE_APP_URL || window.location.origin;
 
   // Re-generate QR Code when table number changes
   useEffect(() => {
