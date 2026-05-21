@@ -9,6 +9,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   phone_number TEXT NOT NULL,
   currency TEXT DEFAULT '₹',
   cover_image TEXT DEFAULT '',
+  established_year TEXT DEFAULT '2026',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

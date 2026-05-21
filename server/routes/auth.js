@@ -202,7 +202,7 @@ router.get('/me', requireAuth, async (req, res) => {
 // @desc    Update restaurant profile settings
 // @access  Private
 router.put('/profile', requireAuth, async (req, res) => {
-  const { restaurantName, phoneNumber, currency, coverImage } = req.body;
+  const { restaurantName, phoneNumber, currency, coverImage, establishedYear } = req.body;
   const updates = {};
   
   if (restaurantName !== undefined) updates.restaurant_name = restaurantName;
@@ -211,6 +211,7 @@ router.put('/profile', requireAuth, async (req, res) => {
   }
   if (currency !== undefined) updates.currency = currency;
   if (coverImage !== undefined) updates.cover_image = coverImage;
+  if (establishedYear !== undefined) updates.established_year = establishedYear;
 
   try {
     const { data: updatedProfile, error: dbError } = await supabase

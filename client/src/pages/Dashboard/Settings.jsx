@@ -1,27 +1,20 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { api } from '../../utils/api';
-import { Save, User, Phone, Globe, Image as ImageIcon, Upload, Check } from 'lucide-react';
+import { Save, User, Phone, Globe, Image as ImageIcon, Upload, Check, Calendar } from 'lucide-react';
 
 export default function Settings() {
-  const [restaurantName, setRestaurantName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [currency, setCurrency] = useState('₹');
-  const [coverImage, setCoverImage] = useState('');
+  const profile = JSON.parse(localStorage.getItem('profile') || '{}');
+  
+  const [restaurantName, setRestaurantName] = useState(profile.restaurant_name || '');
+  const [phoneNumber, setPhoneNumber] = useState(profile.phone_number || '');
+  const [currency, setCurrency] = useState(profile.currency || '₹');
+  const [coverImage, setCoverImage] = useState(profile.cover_image || '');
+  const [establishedYear, setEstablishedYear] = useState(profile.established_year || '2026');
   
   const [imageFile, setImageFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
-
-  useEffect(() => {
-    const profile = JSON.parse(localStorage.getItem('profile') || '{}');
-    if (profile) {
-      setRestaurantName(profile.restaurant_name || '');
-      setPhoneNumber(profile.phone_number || '');
-      setCurrency(profile.currency || '₹');
-      setCoverImage(profile.cover_image || '');
-    }
-  }, []);
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -65,7 +58,8 @@ export default function Settings() {
         restaurantName,
         phoneNumber,
         currency,
-        coverImage: finalCoverImage
+        coverImage: finalCoverImage,
+        establishedYear
       });
 
       // Update local storage
@@ -141,6 +135,21 @@ export default function Settings() {
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
                 placeholder="₹, $, €, £"
+                required
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Established Year</label>
+            <div className="input-with-icon">
+              <Calendar className="input-icon" size={18} />
+              <input 
+                type="text" 
+                className="form-control"
+                value={establishedYear}
+                onChange={(e) => setEstablishedYear(e.target.value)}
+                placeholder="e.g. 2026"
                 required
               />
             </div>

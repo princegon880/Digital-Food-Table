@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
 import { 
   ShoppingBag, 
@@ -6,9 +6,7 @@ import {
   Check, 
   X, 
   Play, 
-  Bell, 
   AlertCircle,
-  TrendingUp,
   Inbox
 } from 'lucide-react';
 
@@ -19,17 +17,6 @@ export default function OrdersTracker() {
   const [error, setError] = useState('');
   
   const profile = JSON.parse(localStorage.getItem('profile') || '{}');
-
-  useEffect(() => {
-    fetchOrders();
-
-    // Start 5-second polling interval for real-time order tracking
-    const interval = setInterval(() => {
-      fetchOrders(false); // fetch silently without loader
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   const fetchOrders = async (showLoader = true) => {
     try {
@@ -56,6 +43,19 @@ export default function OrdersTracker() {
     }
   };
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchOrders();
+
+    // Start 5-second polling interval for real-time order tracking
+    const interval = setInterval(() => {
+      fetchOrders(false); // fetch silently without loader
+    }, 5000);
+
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const playNotificationSound = () => {
     try {
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -71,7 +71,7 @@ export default function OrdersTracker() {
 
       oscillator.start();
       oscillator.stop(audioCtx.currentTime + 0.15);
-    } catch (e) {
+    } catch {
       console.log('Audio chime blocked by browser autoplays.');
     }
   };

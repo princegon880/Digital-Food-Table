@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../utils/api';
 import { 
   Utensils, 
   Layers, 
-  ShoppingBag, 
-  Clock, 
   QrCode, 
-  ArrowRight,
-  TrendingUp
+  ArrowRight
 } from 'lucide-react';
 
 export default function DashboardHome() {

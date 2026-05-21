@@ -1,14 +1,8 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
 import { 
   Sparkles, 
   QrCode, 
-  ShoppingBag, 
   Flame, 
-  PhoneCall, 
-  TrendingUp, 
-  CheckCircle,
-  Menu,
   ChevronRight
 } from 'lucide-react';
 

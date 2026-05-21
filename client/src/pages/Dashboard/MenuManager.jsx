@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
 import Modal from '../../components/Modal';
 import { 
   Plus, 
   Edit2, 
   Trash2, 
-  Check, 
   Image as ImageIcon, 
   Upload, 
   AlertCircle,
@@ -42,10 +41,6 @@ export default function MenuManager() {
 
   const profile = JSON.parse(localStorage.getItem('profile') || '{}');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
     try {
       setError('');
@@ -65,6 +60,12 @@ export default function MenuManager() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // CATEGORY OPERATIONS
   const openCategoryModal = (mode, data = null) => {
@@ -173,11 +174,11 @@ export default function MenuManager() {
       };
 
       if (itemModal.mode === 'create') {
-        const newItem = await api.post('/items', submission);
+        await api.post('/items', submission);
         // Refresh items list
         fetchData();
       } else {
-        const updatedItem = await api.put(`/items/${itemModal.data.id}`, submission);
+        await api.put(`/items/${itemModal.data.id}`, submission);
         // Refresh items list
         fetchData();
       }
@@ -193,7 +194,7 @@ export default function MenuManager() {
         isAvailable: !item.is_available
       });
       setItems(items.map(i => i.id === item.id ? { ...i, is_available: updated.is_available } : i));
-    } catch (err) {
+    } catch {
       alert('Failed to update availability');
     }
   };

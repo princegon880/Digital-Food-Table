@@ -1,18 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
 import { 
   Printer, 
   Download, 
   QrCode as QrIcon, 
   Sparkles, 
-  Compass, 
-  CheckCircle,
   HelpCircle
 } from 'lucide-react';
 
 export default function QrGenerator() {
   const [tableNumber, setTableNumber] = useState('1');
-  const [qrUrl, setQrUrl] = useState('');
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const printAreaRef = useRef();
 
@@ -21,14 +18,13 @@ export default function QrGenerator() {
   // Falls back to current origin only for local development
   const appOrigin = import.meta.env.VITE_APP_URL || window.location.origin;
 
+  const formattedSlug = profile.slug || 'demo-restaurant';
+  const qrUrl = `${appOrigin}/menu/${formattedSlug}?table=${tableNumber}`;
+
   // Re-generate QR Code when table number changes
   useEffect(() => {
-    const formattedSlug = profile.slug || 'demo-restaurant';
-    const url = `${appOrigin}/menu/${formattedSlug}?table=${tableNumber}`;
-    setQrUrl(url);
-
     QRCode.toDataURL(
-      url,
+      qrUrl,
       {
         width: 300,
         margin: 1,
@@ -45,7 +41,7 @@ export default function QrGenerator() {
         setQrCodeDataUrl(dataUrl);
       }
     );
-  }, [tableNumber, profile.slug, appOrigin]);
+  }, [qrUrl]);
 
   const handlePrint = () => {
     window.print();
