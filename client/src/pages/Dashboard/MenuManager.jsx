@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../../utils/api';
+import { api, resolveImageUrl } from '../../utils/api';
 import Modal from '../../components/Modal';
 import { 
   Plus, 
@@ -319,7 +319,7 @@ export default function MenuManager() {
                       <div key={item.id} className="glass dish-card">
                         <div className="dish-image-wrapper">
                           {item.image_url ? (
-                            <img src={item.image_url} alt={item.name} className="dish-img" />
+                            <img src={resolveImageUrl(item.image_url)} alt={item.name} className="dish-img" />
                           ) : (
                             <div className="dish-img-placeholder">
                               <ImageIcon size={32} />
@@ -491,7 +491,7 @@ export default function MenuManager() {
             <div className="image-uploader-box">
               {itemForm.imageUrl && !imageFile && (
                 <div className="uploader-preview">
-                  <img src={itemForm.imageUrl} alt="preview" />
+                  <img src={resolveImageUrl(itemForm.imageUrl)} alt="preview" />
                   <button 
                     type="button" 
                     className="btn btn-danger btn-sm delete-img-btn"

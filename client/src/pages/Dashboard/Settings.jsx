@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { api } from '../../utils/api';
+import { api, resolveImageUrl } from '../../utils/api';
 import { Save, User, Phone, Globe, Image as ImageIcon, Upload, Check, Calendar, Link2 } from 'lucide-react';
 
 export default function Settings() {
@@ -237,7 +237,7 @@ export default function Settings() {
             <div className="cover-preview-container">
               {coverImage ? (
                 <div className="settings-cover-preview">
-                  <img src={coverImage} alt="cover" />
+                  <img src={resolveImageUrl(coverImage)} alt="cover" />
                   <button 
                     type="button" 
                     className="btn btn-danger btn-sm remove-cover-btn"

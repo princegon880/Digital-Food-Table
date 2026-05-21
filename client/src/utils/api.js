@@ -69,3 +69,16 @@ export const api = {
     return data;
   }
 };
+
+export const resolveImageUrl = (url) => {
+  if (!url || typeof url !== 'string' || url.trim() === '') return '';
+  
+  if (url.includes('/uploads/')) {
+    const uploadsIndex = url.indexOf('/uploads/');
+    const relativePath = url.substring(uploadsIndex); // "/uploads/..."
+    const serverBaseUrl = API_BASE_URL.replace('/api', '');
+    return `${serverBaseUrl}${relativePath}`;
+  }
+  
+  return url;
+};

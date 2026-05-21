@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
-import { api } from '../utils/api';
+import { api, resolveImageUrl } from '../utils/api';
 import { 
   ShoppingBag, 
   Search, 
@@ -33,7 +33,7 @@ const CATEGORY_IMAGES = {
 
 const getDishImage = (item, categoriesList) => {
   if (item.image_url && item.image_url.trim() !== '') {
-    return item.image_url;
+    return resolveImageUrl(item.image_url);
   }
   
   const cat = categoriesList.find(c => c.id === item.category_id);
@@ -393,7 +393,7 @@ export default function CustomerMenu() {
       <div className="como-hero-banner">
         <div className="como-hero-overlay"></div>
         <img 
-          src={restaurant.cover_image && restaurant.cover_image.trim() !== '' ? restaurant.cover_image : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&auto=format&fit=crop&q=80'} 
+          src={restaurant.cover_image && restaurant.cover_image.trim() !== '' ? resolveImageUrl(restaurant.cover_image) : 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=1200&auto=format&fit=crop&q=80'} 
           alt={restaurant.restaurant_name} 
           className="como-hero-img" 
         />
