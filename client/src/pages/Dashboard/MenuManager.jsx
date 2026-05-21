@@ -414,6 +414,7 @@ export default function MenuManager() {
               className="form-control"
               value={categoryForm.order}
               onChange={(e) => setCategoryForm({ ...categoryForm, order: parseInt(e.target.value) || 0 })}
+              onWheel={(e) => e.target.blur()}
             />
           </div>
 
@@ -453,6 +454,7 @@ export default function MenuManager() {
                 placeholder="250"
                 value={itemForm.price}
                 onChange={(e) => setItemForm({ ...itemForm, price: e.target.value })}
+                onWheel={(e) => e.target.blur()}
                 required
               />
             </div>
