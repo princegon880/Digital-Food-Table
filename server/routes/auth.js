@@ -21,7 +21,7 @@ const generateUniqueSlug = async (restaurantName) => {
     const { data, error } = await supabase
       .from('profiles')
       .select('slug')
-      .eq('slug', slug);
+      .ilike('slug', slug);
     
     if (error) {
       throw new Error('Database check failed during slug generation');
@@ -230,7 +230,7 @@ router.put('/profile', requireAuth, async (req, res) => {
       const { data: existingProfiles, error: slugCheckError } = await supabase
         .from('profiles')
         .select('id, slug')
-        .eq('slug', cleanSlug);
+        .ilike('slug', cleanSlug);
         
       if (slugCheckError) {
         return res.status(500).json({ error: 'Database check failed during slug validation' });

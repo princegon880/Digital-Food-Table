@@ -37,7 +37,7 @@ router.post('/', async (req, res) => {
     const { data: restaurant, error: restError } = await supabase
       .from('profiles')
       .select('id')
-      .eq('slug', restaurantSlug)
+      .ilike('slug', restaurantSlug.trim())
       .single();
 
     if (restError || !restaurant) {

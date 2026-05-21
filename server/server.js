@@ -31,6 +31,12 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Origin: ${req.get('origin') || 'none'}`);
+  next();
+});
+
 // Serve local upload files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
@@ -44,12 +50,19 @@ app.use('/api/public/menu', require('./routes/menu'));
 // Diagnostics and Health check endpoint
 app.get('/api/test-db', async (req, res) => {
   const supabase = require('./config/supabase');
+  const url = process.env.SUPABASE_URL;
+  const key = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+  const hasValidUrl = url && !url.includes('your-project');
+  const hasValidKey = key && !key.includes('your-anon-key') && !key.includes('your-service-role-key');
+  const isOnlineMode = hasValidUrl && hasValidKey;
+
   const diagnostics = {
-    supabase_url_exists: !!process.env.SUPABASE_URL,
+    supabase_url_exists: !!url,
+    supabase_anon_key_exists: !!process.env.SUPABASE_ANON_KEY,
     supabase_key_exists: !!process.env.SUPABASE_KEY,
-    supabase_url_val: process.env.SUPABASE_URL ? process.env.SUPABASE_URL.substring(0, 15) + '...' : null,
-    supabase_key_length: process.env.SUPABASE_KEY ? process.env.SUPABASE_KEY.length : 0,
-    db_mode: process.env.SUPABASE_URL && process.env.SUPABASE_KEY ? 'Official Supabase' : 'Offline/db.json file',
+    supabase_url_val: url ? url.substring(0, 15) + '...' : null,
+    supabase_key_length: key ? key.length : 0,
+    db_mode: isOnlineMode ? 'Official Supabase' : 'Offline/db.json file',
   };
 
   try {

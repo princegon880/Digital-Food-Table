@@ -1,14 +1,42 @@
 const { createClient } = require('@supabase/supabase-js');
 
-if (process.env.SUPABASE_URL && process.env.SUPABASE_KEY) {
+const url = process.env.SUPABASE_URL;
+const key = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+const isPlaceholderUrl = url && url.includes('your-project');
+const isPlaceholderKey = key && (key.includes('your-anon-key') || key.includes('your-service-role-key'));
+
+if (url && key && !isPlaceholderUrl && !isPlaceholderKey) {
   console.log('Connecting to official online Supabase DB...');
-  module.exports = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+  module.exports = createClient(url, key);
 } else {
   console.log('Running in local/offline database mode (using db.json)...');
   const fs = require('fs');
   const path = require('path');
 
 const dbPath = path.join(__dirname, '../db.json');
+
+// Helper to check if a row matches a filter (supporting eq and ilike)
+function matchFilter(row, filter) {
+  const rowValue = row[filter.field];
+  const filterValue = filter.value;
+
+  if (filter.operator === 'ilike') {
+    const rVal = (rowValue !== undefined && rowValue !== null) ? rowValue.toString().toLowerCase() : '';
+    const fVal = (filterValue !== undefined && filterValue !== null) ? filterValue.toString().toLowerCase() : '';
+
+    if (fVal.includes('%')) {
+      const escaped = fVal.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+      const regexStr = '^' + escaped.split('%').join('.*') + '$';
+      const regex = new RegExp(regexStr);
+      return regex.test(rVal);
+    } else {
+      return rVal === fVal;
+    }
+  }
+
+  // default: 'eq' or undefined operator
+  return rowValue == filterValue;
+}
 
 // Helper to read DB
 function readDb() {
@@ -82,7 +110,12 @@ class QueryBuilder {
   }
 
   eq(field, value) {
-    this.filters.push({ field, value });
+    this.filters.push({ field, value, operator: 'eq' });
+    return this;
+  }
+
+  ilike(field, value) {
+    this.filters.push({ field, value, operator: 'ilike' });
     return this;
   }
 
@@ -104,7 +137,7 @@ class QueryBuilder {
     if (this.action === 'select') {
       // Apply filters
       for (const filter of this.filters) {
-        data = data.filter(row => row[filter.field] == filter.value);
+        data = data.filter(row => matchFilter(row, filter));
       }
 
       // Handle joins (e.g. *, categories(*))
@@ -173,7 +206,7 @@ class QueryBuilder {
       for (let i = 0; i < db[this.table].length; i++) {
         let match = true;
         for (const filter of this.filters) {
-          if (db[this.table][i][filter.field] != filter.value) {
+          if (!matchFilter(db[this.table][i], filter)) {
             match = false;
             break;
           }
@@ -220,7 +253,7 @@ class QueryBuilder {
       db[this.table] = db[this.table].filter(row => {
         let match = true;
         for (const filter of this.filters) {
-          if (row[filter.field] != filter.value) {
+          if (!matchFilter(row, filter)) {
             match = false;
             break;
           }
