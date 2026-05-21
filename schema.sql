@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   currency TEXT DEFAULT '₹',
   cover_image TEXT DEFAULT '',
   established_year TEXT DEFAULT '2026',
+  tagline TEXT DEFAULT 'Premium Dining Experience',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

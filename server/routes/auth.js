@@ -202,7 +202,7 @@ router.get('/me', requireAuth, async (req, res) => {
 // @desc    Update restaurant profile settings
 // @access  Private
 router.put('/profile', requireAuth, async (req, res) => {
-  const { restaurantName, phoneNumber, currency, coverImage, establishedYear } = req.body;
+  const { restaurantName, phoneNumber, currency, coverImage, establishedYear, tagline, slug } = req.body;
   const updates = {};
   
   if (restaurantName !== undefined) updates.restaurant_name = restaurantName;
@@ -212,8 +212,38 @@ router.put('/profile', requireAuth, async (req, res) => {
   if (currency !== undefined) updates.currency = currency;
   if (coverImage !== undefined) updates.cover_image = coverImage;
   if (establishedYear !== undefined) updates.established_year = establishedYear;
+  if (tagline !== undefined) updates.tagline = tagline;
 
   try {
+    if (slug !== undefined) {
+      const cleanSlug = slug
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      
+      if (!cleanSlug) {
+        return res.status(400).json({ error: 'URL slug cannot be empty' });
+      }
+      
+      // Check if slug is taken by another user
+      const { data: existingProfiles, error: slugCheckError } = await supabase
+        .from('profiles')
+        .select('id, slug')
+        .eq('slug', cleanSlug);
+        
+      if (slugCheckError) {
+        return res.status(500).json({ error: 'Database check failed during slug validation' });
+      }
+      
+      const alreadyTaken = existingProfiles && existingProfiles.some(p => p.id !== req.user.id);
+      if (alreadyTaken) {
+        return res.status(400).json({ error: 'This URL slug is already taken by another restaurant' });
+      }
+      
+      updates.slug = cleanSlug;
+    }
+
     const { data: updatedProfile, error: dbError } = await supabase
       .from('profiles')
       .update(updates)

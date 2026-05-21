@@ -404,7 +404,7 @@ export default function CustomerMenu() {
             <span>EST. {restaurant.established_year || '2026'}</span>
           </div>
           <h1 className="como-brand-title">{restaurant.restaurant_name}</h1>
-          <p className="como-brand-tagline">Premium Dining Experience</p>
+          <p className="como-brand-tagline">{restaurant.tagline || 'Premium Dining Experience'}</p>
           
           <div className="como-hero-badges-row">
             <span className="como-badge green">🟢 Dine-In Open</span>
@@ -656,7 +656,7 @@ export default function CustomerMenu() {
             {/* Footer */}
             <div className="como-footer">
               <p className="como-footer-brand">{restaurant.restaurant_name}</p>
-              <p className="como-footer-sub">Premium Dining • Powered by Digital Menu Table</p>
+              <p className="como-footer-sub">{restaurant.tagline || 'Premium Dining Experience'} • Powered by Digital Menu Table</p>
             </div>
           </>
         )}

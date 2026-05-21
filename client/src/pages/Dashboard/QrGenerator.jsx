@@ -14,6 +14,7 @@ export default function QrGenerator() {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [serverIp, setServerIp] = useState('');
   const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
+  const [customDomain, setCustomDomain] = useState(() => localStorage.getItem('qr_custom_domain') || '');
   const printAreaRef = useRef();
 
   useEffect(() => {
@@ -44,12 +45,13 @@ export default function QrGenerator() {
 
   // Always use the production domain for QR codes so they work when scanned
   // Falls back to local network IP or current origin for local development
-  const appOrigin = import.meta.env.VITE_APP_URL || (
+  const defaultOrigin = import.meta.env.VITE_APP_URL || (
     serverIp 
       ? `http://${serverIp}:5173` 
       : window.location.origin
   );
 
+  const appOrigin = customDomain.trim() !== '' ? customDomain.trim() : defaultOrigin;
   const formattedSlug = profile.slug || 'demo-restaurant';
   const qrUrl = `${appOrigin}/menu/${formattedSlug}?table=${tableNumber}`;
 
@@ -111,6 +113,21 @@ export default function QrGenerator() {
               onChange={(e) => setTableNumber(e.target.value)}
               required
             />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Base URL (Domain / Local IP)</label>
+            <input 
+              type="text" 
+              className="form-control"
+              placeholder={`Default: ${defaultOrigin}`}
+              value={customDomain}
+              onChange={(e) => {
+                setCustomDomain(e.target.value);
+                localStorage.setItem('qr_custom_domain', e.target.value);
+              }}
+            />
+            <span className="input-hint">Specify your deployed domain (e.g. Vercel URL) or local network IP for the QR menu link.</span>
           </div>
 
           <div className="form-group">

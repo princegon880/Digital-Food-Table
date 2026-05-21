@@ -1,20 +1,46 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../../utils/api';
-import { Save, User, Phone, Globe, Image as ImageIcon, Upload, Check, Calendar } from 'lucide-react';
+import { Save, User, Phone, Globe, Image as ImageIcon, Upload, Check, Calendar, Link2 } from 'lucide-react';
 
 export default function Settings() {
-  const profile = JSON.parse(localStorage.getItem('profile') || '{}');
+  const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
   
   const [restaurantName, setRestaurantName] = useState(profile.restaurant_name || '');
   const [phoneNumber, setPhoneNumber] = useState(profile.phone_number || '');
   const [currency, setCurrency] = useState(profile.currency || '₹');
   const [coverImage, setCoverImage] = useState(profile.cover_image || '');
   const [establishedYear, setEstablishedYear] = useState(profile.established_year || '2026');
+  const [tagline, setTagline] = useState(profile.tagline || 'Premium Dining Experience');
+  const [slug, setSlug] = useState(profile.slug || '');
   
   const [imageFile, setImageFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  // Fetch fresh profile on mount to sync
+  useEffect(() => {
+    async function fetchFreshProfile() {
+      try {
+        const data = await api.get('/auth/me');
+        if (data && data.profile) {
+          localStorage.setItem('profile', JSON.stringify(data.profile));
+          setProfile(data.profile);
+          setRestaurantName(data.profile.restaurant_name || '');
+          setPhoneNumber(data.profile.phone_number || '');
+          setCurrency(data.profile.currency || '₹');
+          setCoverImage(data.profile.cover_image || '');
+          setEstablishedYear(data.profile.established_year || '2026');
+          setTagline(data.profile.tagline || 'Premium Dining Experience');
+          setSlug(data.profile.slug || '');
+        }
+      } catch (err) {
+        console.error('Failed to fetch profile in settings:', err);
+      }
+    }
+    fetchFreshProfile();
+  }, []);
 
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
@@ -42,6 +68,7 @@ export default function Settings() {
     e.preventDefault();
     setSaving(true);
     setSuccess(false);
+    setError('');
 
     try {
       let finalCoverImage = coverImage;
@@ -59,17 +86,21 @@ export default function Settings() {
         phoneNumber,
         currency,
         coverImage: finalCoverImage,
-        establishedYear
+        establishedYear,
+        tagline,
+        slug
       });
 
-      // Update local storage
+      // Update local storage and state
       localStorage.setItem('profile', JSON.stringify(updatedProfile));
+      setProfile(updatedProfile);
+      setSlug(updatedProfile.slug);
       setSuccess(true);
       
       // Auto fade success badge
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
-      alert('Failed to update settings: ' + err.message);
+      setError(err.message || 'Failed to update settings');
     } finally {
       setSaving(false);
     }
@@ -95,6 +126,12 @@ export default function Settings() {
             )}
           </div>
 
+          {error && (
+            <div className="error-alert" style={{ color: '#ffffff', backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: '12px 16px', borderRadius: '8px', fontSize: '13px', border: '1px solid rgba(239, 68, 68, 0.3)', marginBottom: '10px' }}>
+              ❌ {error}
+            </div>
+          )}
+
           <div className="form-group">
             <label className="form-label">Restaurant Name</label>
             <div className="input-with-icon">
@@ -107,6 +144,44 @@ export default function Settings() {
                 required
               />
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">URL Slug (Custom Menu Link)</label>
+            <div className="input-with-icon">
+              <Link2 className="input-icon" size={18} />
+              <input 
+                type="text" 
+                className="form-control"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value)}
+                placeholder="e.g. cafe-aroma"
+                required
+              />
+            </div>
+            {slug !== profile.slug && profile.slug && (
+              <span className="input-hint" style={{ display: 'block', marginTop: '6px', color: '#f59e0b', fontWeight: 'bold' }}>
+                ⚠️ Warning: Changing this will invalidate your existing printed QR codes!
+              </span>
+            )}
+            <span className="input-hint" style={{ display: 'block', marginTop: '4px' }}>
+              Your menu link: <strong style={{ color: 'var(--primary)' }}>{window.location.origin}/menu/{slug || 'your-slug'}</strong>
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Restaurant Tagline</label>
+            <div className="input-with-icon">
+              <input 
+                type="text" 
+                className="form-control"
+                value={tagline}
+                onChange={(e) => setTagline(e.target.value)}
+                placeholder="e.g. Premium Dining Experience"
+                style={{ paddingLeft: '16px' }}
+              />
+            </div>
+            <span className="input-hint">This tagline displays under the restaurant name on your menu page.</span>
           </div>
 
           <div className="form-group">
