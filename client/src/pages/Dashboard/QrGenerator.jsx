@@ -23,9 +23,8 @@ export default function QrGenerator() {
     async function fetchServerIpAndProfile() {
       try {
         const [ipData, meData] = await Promise.all([
-          (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-            ? api.get('/server-ip').catch(() => null)
-            : Promise.resolve(null),
+          // Always try to get the real network IP so QR codes work on mobile devices
+          api.get('/server-ip').catch(() => null),
           api.get('/auth/me').catch(() => null)
         ]);
 
@@ -48,12 +47,18 @@ export default function QrGenerator() {
   }, []);
 
   // Always use the production domain for QR codes so they work when scanned
-  // Falls back to local network IP or current origin for local development
-  const defaultOrigin = import.meta.env.VITE_APP_URL || (
-    serverIp 
-      ? `http://${serverIp}:5173` 
-      : window.location.origin
-  );
+  // Use port 5000 (Express server) which now serves the full React SPA.
+  // This ensures QR codes work even when the Vite dev server is not running.
+  const defaultOrigin = import.meta.env.VITE_APP_URL || (() => {
+    // If a real network IP was fetched, use it on port 5000 (the backend/SPA server)
+    // This makes the QR code scannable from ANY device on the local network
+    if (serverIp && serverIp !== 'localhost') {
+      return `http://${serverIp}:5000`;
+    }
+    // Fallback: use current origin but swap port to 5000
+    const hostname = window.location.hostname;
+    return `http://${hostname}:5000`;
+  })();
 
   const appOrigin = customDomain.trim() !== '' ? customDomain.trim() : defaultOrigin;
   const formattedSlug = profile.slug || '';
