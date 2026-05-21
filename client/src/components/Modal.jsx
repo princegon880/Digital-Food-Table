@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 export default function Modal({ isOpen, onClose, title, children }) {
@@ -16,7 +17,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="modal-overlay" onClick={onClose}>
       <div className="glass modal-content animated" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
@@ -120,6 +121,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
           }
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }
