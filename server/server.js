@@ -137,8 +137,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Something went wrong on the server!' });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Uploads folder served at http://localhost:${PORT}/uploads/`);
-});
+// Start Server locally (not needed on Vercel - it uses module.exports)
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+    console.log(`Uploads folder served at http://localhost:${PORT}/uploads/`);
+  });
+}
+
+// Export app for Vercel serverless deployment
+module.exports = app;
