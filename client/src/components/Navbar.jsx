@@ -10,6 +10,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import { api } from '../utils/api';
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -82,15 +83,21 @@ export default function Navbar() {
           </div>
           <div className="profile-info">
             <div className="profile-name">{profile.restaurant_name || 'Restaurant'}</div>
-            <a 
-              href={`/menu/${profile.slug}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              className="profile-link"
-              onClick={() => setIsOpen(false)}
-            >
-              view menu ↗
-            </a>
+            {profile.slug ? (
+              <a 
+                href={`/menu/${profile.slug}`} 
+                target="_blank" 
+                rel="noopener noreferrer" 
+                className="profile-link"
+                onClick={() => setIsOpen(false)}
+              >
+                view menu ↗
+              </a>
+            ) : (
+              <span className="profile-link" style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                setting up...
+              </span>
+            )}
           </div>
         </div>
 

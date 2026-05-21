@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { 
   Printer, 
@@ -15,6 +16,7 @@ export default function QrGenerator() {
   const [serverIp, setServerIp] = useState('');
   const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
   const [customDomain, setCustomDomain] = useState(() => localStorage.getItem('qr_custom_domain') || '');
+  const [loading, setLoading] = useState(!profile.slug);
   const printAreaRef = useRef();
 
   useEffect(() => {
@@ -37,6 +39,8 @@ export default function QrGenerator() {
         }
       } catch (err) {
         console.error('Failed to fetch data in QR Generator:', err);
+      } finally {
+        setLoading(false);
       }
     }
 
@@ -52,11 +56,15 @@ export default function QrGenerator() {
   );
 
   const appOrigin = customDomain.trim() !== '' ? customDomain.trim() : defaultOrigin;
-  const formattedSlug = profile.slug || 'demo-restaurant';
-  const qrUrl = `${appOrigin}/menu/${formattedSlug}?table=${tableNumber}`;
+  const formattedSlug = profile.slug || '';
+  const qrUrl = formattedSlug ? `${appOrigin}/menu/${formattedSlug}?table=${tableNumber}` : '';
 
   // Re-generate QR Code when table number changes
   useEffect(() => {
+    if (!qrUrl) {
+      setQrCodeDataUrl('');
+      return;
+    }
     QRCode.toDataURL(
       qrUrl,
       {
@@ -78,10 +86,12 @@ export default function QrGenerator() {
   }, [qrUrl]);
 
   const handlePrint = () => {
+    if (!profile.slug || !qrCodeDataUrl) return;
     window.print();
   };
 
   const handleDownload = () => {
+    if (!profile.slug || !qrCodeDataUrl) return;
     const link = document.createElement('a');
     link.download = `${profile.slug}-table-${tableNumber}-qr.png`;
     link.href = qrCodeDataUrl;
@@ -98,6 +108,15 @@ export default function QrGenerator() {
       </div>
 
       <div className="qr-layout">
+        {!loading && !profile.slug && (
+          <div className="slug-warning-banner">
+            <h4>⚠️ URL Slug Setup Required</h4>
+            <p>Your restaurant profile does not have a unique URL slug configured yet. You need to configure a slug in Settings before you can generate table QR codes.</p>
+            <Link to="/dashboard/settings" className="btn btn-primary" style={{ display: 'inline-flex', width: 'fit-content', marginTop: '12px', padding: '8px 16px', fontSize: '12px' }}>
+              Go to Settings
+            </Link>
+          </div>
+        )}
         {/* Left Side: Customize Form */}
         <div className="glass settings-card">
           <h3>Customize QR Code</h3>
@@ -133,16 +152,16 @@ export default function QrGenerator() {
           <div className="form-group">
             <label className="form-label">Generated URL Link</label>
             <div className="url-preview-box">
-              <span>{qrUrl}</span>
+              <span>{loading ? 'Fetching slug...' : (qrUrl || 'No slug configured. Go to settings.')}</span>
             </div>
           </div>
 
           <div className="qr-actions-row">
-            <button className="btn btn-secondary" onClick={handleDownload} disabled={!qrCodeDataUrl}>
+            <button className="btn btn-secondary" onClick={handleDownload} disabled={!qrCodeDataUrl || !profile.slug || loading}>
               <Download size={16} />
               <span>Download PNG</span>
             </button>
-            <button className="btn btn-primary" onClick={handlePrint} disabled={!qrCodeDataUrl}>
+            <button className="btn btn-primary" onClick={handlePrint} disabled={!qrCodeDataUrl || !profile.slug || loading}>
               <Printer size={16} />
               <span>Print Table Card</span>
             </button>
@@ -174,7 +193,17 @@ export default function QrGenerator() {
               </div>
 
               <div className="ticket-body">
-                {qrCodeDataUrl ? (
+                {loading ? (
+                  <div className="ticket-qr-placeholder" style={{ flexDirection: 'column', gap: '8px' }}>
+                    <div className="spinner"></div>
+                    <span style={{ fontSize: '10px', color: '#777' }}>Loading...</span>
+                  </div>
+                ) : !profile.slug ? (
+                  <div className="ticket-qr-placeholder text-danger" style={{ padding: '16px', flexDirection: 'column', gap: '6px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 'bold', color: '#ef4444' }}>No Slug Configured</span>
+                    <span style={{ fontSize: '10px', color: '#777' }}>Go to settings to set up a URL slug.</span>
+                  </div>
+                ) : qrCodeDataUrl ? (
                   <img src={qrCodeDataUrl} alt="QR Code" className="ticket-qr-img" />
                 ) : (
                   <div className="ticket-qr-placeholder">
@@ -209,6 +238,40 @@ export default function QrGenerator() {
 
       {/* Global CSS style tags to support print layouts */}
       <style>{`
+        .slug-warning-banner {
+          grid-column: 1 / -1;
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          border-radius: var(--radius-md);
+          padding: 20px;
+          color: #f87171;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: 8px;
+        }
+        .slug-warning-banner h4 {
+          color: #ffffff;
+          font-size: 15px;
+          margin: 0;
+        }
+        .slug-warning-banner p {
+          font-size: 13px;
+          color: var(--text-dark-secondary);
+          margin: 0;
+        }
+        .spinner {
+          border: 3px solid rgba(255, 255, 255, 0.05);
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          border-left-color: #ff4e00;
+          animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
         .qr-layout {
           display: grid;
           grid-template-columns: 1fr 1fr;

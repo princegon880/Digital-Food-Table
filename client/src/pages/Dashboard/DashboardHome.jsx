@@ -59,15 +59,21 @@ export default function DashboardHome() {
           <h2>Welcome, {profile.restaurant_name}!</h2>
           <p>Here is what's happening at your restaurant today.</p>
         </div>
-        <a 
-          href={`/menu/${profile.slug}`} 
-          target="_blank" 
-          rel="noopener noreferrer" 
-          className="btn btn-primary"
-        >
-          <QrCode size={16} />
-          <span>View Customer Menu</span>
-        </a>
+        {profile.slug ? (
+          <a 
+            href={`/menu/${profile.slug}`} 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            className="btn btn-primary"
+          >
+            <QrCode size={16} />
+            <span>View Customer Menu</span>
+          </a>
+        ) : (
+          <Link to="/dashboard/settings" className="btn btn-secondary">
+            <span>Configure Slug in Settings</span>
+          </Link>
+        )}
       </div>
 
       {loading ? (
