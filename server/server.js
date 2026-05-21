@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
@@ -39,6 +40,16 @@ app.use((req, res, next) => {
 
 // Serve local upload files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve static client assets
+const clientBuildPath = path.join(__dirname, '../client/dist');
+const hasClientBuild = fs.existsSync(clientBuildPath);
+if (hasClientBuild) {
+  app.use(express.static(clientBuildPath));
+  console.log(`Serving client production build from: ${clientBuildPath}`);
+} else {
+  console.log(`Client production build not found at: ${clientBuildPath}. Will fallback to JSON messages.`);
+}
 
 // Mount API Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -103,9 +114,21 @@ app.get('/api/server-ip', (req, res) => {
   res.json({ ip: localIp });
 });
 
-// Default base route
-app.get('/', (req, res) => {
-  res.json({ message: 'QR Menu SaaS API is running smoothly.' });
+// Catch-all route to serve the React index.html for any frontend route
+app.get('*', (req, res, next) => {
+  // Exclude API routes and static asset files containing dots
+  if (req.path.startsWith('/api/') || req.path.includes('.')) {
+    return next();
+  }
+  if (hasClientBuild) {
+    return res.sendFile(path.join(clientBuildPath, 'index.html'), (err) => {
+      if (err) {
+        next();
+      }
+    });
+  }
+  // Fallback if client is not built
+  res.json({ message: 'QR Menu SaaS API is running smoothly. (Client build not found)' });
 });
 
 // Error handling middleware
