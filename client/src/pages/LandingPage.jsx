@@ -15,6 +15,7 @@ export default function LandingPage() {
 
       {/* Header */}
       <header className="landing-header container">
+        <div className="header-spacer"></div>
         <div className="brand">
           <Sparkles className="logo-icon" size={24} />
           <span>QR Dine</span>
@@ -141,19 +142,23 @@ export default function LandingPage() {
         }
 
         .landing-header {
-          display: flex;
+          display: grid;
+          grid-template-columns: 1fr auto 1fr;
           align-items: center;
-          justify-content: space-between;
           min-height: 80px;
           height: auto;
           position: relative;
           z-index: 10;
-          flex-wrap: wrap;
-          gap: 16px;
           padding: 10px 24px;
         }
 
+        .header-spacer {
+          display: block;
+        }
+
         .brand {
+          grid-column: 2;
+          justify-self: center;
           display: flex;
           align-items: center;
           gap: 10px;
@@ -167,6 +172,8 @@ export default function LandingPage() {
         }
 
         .header-actions {
+          grid-column: 3;
+          justify-self: end;
           display: flex;
           gap: 12px;
         }
@@ -491,10 +498,14 @@ export default function LandingPage() {
 
         @media (max-width: 768px) {
           .landing-header {
+            display: flex;
             flex-direction: column;
             height: auto;
             padding: 20px 24px;
             gap: 16px;
+          }
+          .header-spacer {
+            display: none;
           }
           .hero-section {
             padding: 20px 24px 50px 24px;
