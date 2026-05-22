@@ -109,6 +109,9 @@ export default function CustomerMenu() {
         setRestaurant(data.profile);
         setCategories(data.categories);
         setItems(data.items);
+        if (data.profile && data.profile.restaurant_name) {
+          localStorage.setItem(`restaurant_name_${slug}`, data.profile.restaurant_name);
+        }
       } catch (err) {
         setError(err.message || 'Failed to load menu. Make sure the link is correct.');
       } finally {
@@ -243,10 +246,12 @@ export default function CustomerMenu() {
   });
 
   if (loading) {
+    const cachedName = localStorage.getItem(`restaurant_name_${slug}`);
+    const loadingName = cachedName || (slug ? slug.split('-').join(' ').toUpperCase() : 'LOADING...');
     return (
       <div className="menu-client-loading">
         <div className="luxury-loader"></div>
-        <h2 className="loading-brand animate-pulse">QR DINE</h2>
+        <h2 className="loading-brand animate-pulse">{loadingName}</h2>
         <p className="loading-sub">Preparing digital menu...</p>
         <style>{`
           .menu-client-loading {
