@@ -1936,10 +1936,41 @@ export default function CustomerMenu() {
         /* Media adjustments */
         @media (max-width: 480px) {
           .como-hero-banner {
-            height: 320px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            height: auto;
+            padding: 0 0 24px 0;
+            background: #0A0A0C;
+          }
+          .como-hero-img {
+            position: relative;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 16/9;
+            object-fit: cover;
+            z-index: 1;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          }
+          .como-hero-overlay {
+            display: none;
+          }
+          .como-hero-content {
+            position: relative;
+            margin-top: 16px;
+            padding: 0 20px;
+            width: 100%;
+            max-width: 100%;
+            gap: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
           }
           .como-brand-title {
             font-size: 26px;
+            text-shadow: none;
           }
           .como-popular-card {
             flex: 0 0 190px;
