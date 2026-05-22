@@ -7,7 +7,8 @@ import {
   X, 
   Play, 
   AlertCircle,
-  Inbox
+  Inbox,
+  ChevronDown
 } from 'lucide-react';
 
 export default function OrdersTracker() {
@@ -15,6 +16,7 @@ export default function OrdersTracker() {
   const [activeTab, setActiveTab] = useState('active'); // active or history
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [expandedOrderId, setExpandedOrderId] = useState(null);
   
   const profile = JSON.parse(localStorage.getItem('profile') || '{}');
 
@@ -272,24 +274,78 @@ export default function OrdersTracker() {
                         <th>Dishes</th>
                         <th>Price</th>
                         <th>Status</th>
+                        <th style={{ width: '48px' }}></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {historyOrders.map((order) => (
-                        <tr key={order.id}>
-                          <td>{new Date(order.created_at).toLocaleString()}</td>
-                          <td>Table {order.table_number}</td>
-                          <td className="dishes-cell">
-                            {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
-                          </td>
-                          <td className="price-cell">{profile.currency || '₹'}{order.total_price}</td>
-                          <td>
-                            <span className={`badge ${order.status === 'Completed' ? 'badge-success' : 'badge-danger'}`}>
-                              {order.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
+                      {historyOrders.map((order) => {
+                        const isExpanded = expandedOrderId === order.id;
+                        return (
+                          <>
+                            <tr
+                              key={order.id}
+                              className={`history-row ${isExpanded ? 'row-expanded' : ''}`}
+                              onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                            >
+                              <td>{new Date(order.created_at).toLocaleString()}</td>
+                              <td>Table {order.table_number}</td>
+                              <td className="dishes-cell">
+                                {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
+                              </td>
+                              <td className="price-cell">{profile.currency || '₹'}{order.total_price}</td>
+                              <td>
+                                <span className={`badge ${order.status === 'Completed' ? 'badge-success' : 'badge-danger'}`}>
+                                  {order.status}
+                                </span>
+                              </td>
+                              <td className="expand-cell">
+                                <button
+                                  className={`expand-btn ${isExpanded ? 'expanded' : ''}`}
+                                  onClick={(e) => { e.stopPropagation(); setExpandedOrderId(isExpanded ? null : order.id); }}
+                                  title={isExpanded ? 'Collapse' : 'View full order'}
+                                >
+                                  <ChevronDown size={16} />
+                                </button>
+                              </td>
+                            </tr>
+
+                            {isExpanded && (
+                              <tr key={`${order.id}-detail`} className="detail-row animated">
+                                <td colSpan={6} className="detail-cell">
+                                  <div className="order-detail-panel">
+                                    <div className="detail-panel-header">
+                                      <span>📋 Full Order — Table {order.table_number}</span>
+                                      <span className="detail-time">{new Date(order.created_at).toLocaleString()}</span>
+                                    </div>
+
+                                    <div className="detail-items-list">
+                                      <div className="detail-items-head">
+                                        <span>Item</span>
+                                        <span>Qty</span>
+                                        <span>Unit Price</span>
+                                        <span>Subtotal</span>
+                                      </div>
+                                      {order.items.map((item, idx) => (
+                                        <div key={idx} className="detail-item-row">
+                                          <span className="di-name">{item.name}</span>
+                                          <span className="di-qty">{item.quantity}</span>
+                                          <span className="di-unit">{profile.currency || '₹'}{item.price}</span>
+                                          <span className="di-sub">{profile.currency || '₹'}{item.price * item.quantity}</span>
+                                        </div>
+                                      ))}
+                                    </div>
+
+                                    <div className="detail-total-row">
+                                      <span>Grand Total</span>
+                                      <span className="detail-total-val">{profile.currency || '₹'}{order.total_price}</span>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -551,6 +607,134 @@ export default function OrdersTracker() {
         }
         .price-cell {
           font-weight: 700;
+          color: var(--primary);
+        }
+
+        /* Expand button */
+        .history-row {
+          cursor: pointer;
+          transition: background 0.15s;
+        }
+        .history-row:hover {
+          background: rgba(255, 255, 255, 0.025);
+        }
+        .history-row.row-expanded {
+          background: rgba(255, 255, 255, 0.03);
+        }
+        .expand-cell {
+          text-align: center !important;
+          padding: 12px 8px !important;
+        }
+        .expand-btn {
+          width: 30px;
+          height: 30px;
+          border-radius: 50%;
+          border: 1px solid var(--border-dark);
+          background: rgba(255,255,255,0.03);
+          color: var(--text-dark-muted);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+        }
+        .expand-btn:hover {
+          background: rgba(255,255,255,0.08);
+          color: var(--primary);
+          border-color: var(--primary);
+        }
+        .expand-btn.expanded {
+          background: var(--primary-glow);
+          color: var(--primary);
+          border-color: var(--primary);
+          transform: rotate(180deg);
+        }
+
+        /* Expanded detail row */
+        .detail-row td {
+          padding: 0 !important;
+          border-bottom: 2px solid var(--border-dark);
+        }
+        .detail-cell {
+          padding: 0 !important;
+        }
+        .order-detail-panel {
+          margin: 0 16px 16px;
+          border: 1px solid var(--border-dark);
+          border-radius: var(--radius-md);
+          background: rgba(255,255,255,0.02);
+          overflow: hidden;
+          animation: panel-slide-in 0.2s ease-out forwards;
+        }
+        @keyframes panel-slide-in {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .detail-panel-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          border-bottom: 1px solid var(--border-dark);
+          background: rgba(255,255,255,0.02);
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-dark-secondary);
+        }
+        .detail-time {
+          font-size: 12px;
+          color: var(--text-dark-muted);
+          font-weight: 400;
+        }
+
+        .detail-items-list {
+          padding: 12px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .detail-items-head {
+          display: grid;
+          grid-template-columns: 1fr 60px 90px 90px;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-dark-muted);
+          padding-bottom: 8px;
+          border-bottom: 1px solid var(--border-dark);
+          margin-bottom: 4px;
+        }
+        .detail-item-row {
+          display: grid;
+          grid-template-columns: 1fr 60px 90px 90px;
+          font-size: 14px;
+          padding: 6px 0;
+          border-bottom: 1px dashed rgba(255,255,255,0.05);
+        }
+        .detail-item-row:last-child { border-bottom: none; }
+        .di-name { color: var(--text-dark-secondary); }
+        .di-qty  { color: var(--primary); font-weight: 700; font-family: var(--font-brand); }
+        .di-unit { color: var(--text-dark-muted); font-size: 13px; }
+        .di-sub  { color: var(--text-dark-primary); font-weight: 600; }
+
+        .detail-total-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 12px 16px;
+          border-top: 2px solid var(--border-dark);
+          background: rgba(255,255,255,0.02);
+          font-size: 13px;
+          color: var(--text-dark-secondary);
+          font-weight: 600;
+        }
+        .detail-total-val {
+          font-family: var(--font-brand);
+          font-size: 18px;
+          font-weight: 800;
           color: var(--primary);
         }
       `}</style>
