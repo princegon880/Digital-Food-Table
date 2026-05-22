@@ -14,7 +14,7 @@ export default function LandingPage() {
       <div className="radial-glow glow-2"></div>
 
       {/* Header */}
-      <header className="landing-header container">
+      <header className="landing-header">
         <div className="header-spacer"></div>
         <div className="brand">
           <Sparkles className="logo-icon" size={24} />
@@ -149,7 +149,7 @@ export default function LandingPage() {
           height: auto;
           position: relative;
           z-index: 10;
-          padding: 10px 24px;
+          padding: 15px 40px;
         }
 
         .header-spacer {
