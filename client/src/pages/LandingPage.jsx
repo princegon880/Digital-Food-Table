@@ -22,7 +22,7 @@ export default function LandingPage() {
         </div>
         <div className="header-actions">
           <Link to="/login" className="btn btn-secondary btn-sm">Log In</Link>
-          <Link to="/register" className="btn btn-primary btn-sm">Get Started</Link>
+          <Link to="/register" className="btn btn-primary btn-sm">Sign Up</Link>
         </div>
       </header>
 
