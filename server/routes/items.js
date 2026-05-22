@@ -6,22 +6,14 @@ const fs = require('fs');
 const supabase = require('../config/supabase');
 const requireAuth = require('../middleware/auth');
 
-// Set up image upload folder
+// Set up image upload folder (for local fallback)
 const uploadDir = path.join(__dirname, '../uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Multer Storage Configuration
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadDir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, uniqueSuffix + path.extname(file.originalname));
-  }
-});
+// Multer Storage Configuration - use memory storage so we can process buffers
+const storage = multer.memoryStorage();
 
 const upload = multer({
   storage,
@@ -37,18 +29,81 @@ const upload = multer({
   }
 });
 
+// Helper to upload file buffer to Supabase bucket
+async function uploadToSupabaseBucket(bucketName, filename, buffer, mimetype) {
+  try {
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(filename, buffer, {
+        contentType: mimetype,
+        upsert: true
+      });
+    return { data, error };
+  } catch (err) {
+    return { data: null, error: err };
+  }
+}
+
 // @route   POST /api/items/upload
 // @desc    Upload menu item image
 // @access  Private
-router.post('/upload', requireAuth, upload.single('image'), (req, res) => {
+router.post('/upload', requireAuth, upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Build absolute/relative URL. For production, use hostname, for dev use localhost
+    const uniqueFilename = `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(req.file.originalname)}`;
+
+    // 1. Try uploading to official online Supabase Storage if available
+    if (supabase.storage) {
+      const bucketName = 'images';
+      console.log(`Online mode detected. Attempting to upload ${uniqueFilename} to Supabase bucket '${bucketName}'...`);
+      
+      let uploadResult = await uploadToSupabaseBucket(bucketName, uniqueFilename, req.file.buffer, req.file.mimetype);
+      
+      if (uploadResult.error) {
+        console.log(`Failed to upload to bucket '${bucketName}':`, uploadResult.error.message);
+        console.log('Attempting to create bucket...');
+        
+        // Attempt to create the bucket in case it doesn't exist
+        try {
+          const { error: createError } = await supabase.storage.createBucket(bucketName, {
+            public: true,
+            fileSizeLimit: 5242880, // 5MB
+            allowedMimeTypes: ['image/*']
+          });
+          
+          if (!createError) {
+            console.log(`Bucket '${bucketName}' created successfully. Retrying upload...`);
+            uploadResult = await uploadToSupabaseBucket(bucketName, uniqueFilename, req.file.buffer, req.file.mimetype);
+          } else {
+            console.error('Create bucket error:', createError.message);
+          }
+        } catch (bucketErr) {
+          console.error('Error creating bucket:', bucketErr);
+        }
+      }
+      
+      if (!uploadResult.error) {
+        const { data } = supabase.storage.from(bucketName).getPublicUrl(uniqueFilename);
+        if (data && data.publicUrl) {
+          console.log(`Supabase upload successful! Public URL: ${data.publicUrl}`);
+          return res.json({ imageUrl: data.publicUrl });
+        }
+      } else {
+        console.error('Supabase upload failed completely. Falling back to local file storage:', uploadResult.error);
+      }
+    }
+
+    // 2. Fallback to Local storage mode (for offline development)
+    console.log(`Saving ${uniqueFilename} locally to uploads folder...`);
+    const localFilePath = path.join(uploadDir, uniqueFilename);
+    fs.writeFileSync(localFilePath, req.file.buffer);
+
+    // Build local absolute URL
     const serverUrl = `${req.protocol}://${req.get('host')}`;
-    const imageUrl = `${serverUrl}/uploads/${req.file.filename}`;
+    const imageUrl = `${serverUrl}/uploads/${uniqueFilename}`;
 
     res.json({ imageUrl });
   } catch (err) {
@@ -56,6 +111,7 @@ router.post('/upload', requireAuth, upload.single('image'), (req, res) => {
     res.status(500).json({ error: err.message || 'Image upload failed' });
   }
 });
+
 
 // @route   GET /api/items
 // @desc    Get all menu items for the authenticated restaurant
