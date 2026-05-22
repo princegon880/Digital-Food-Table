@@ -1239,6 +1239,32 @@ export default function CustomerMenu() {
           gap: 16px;
           margin-top: 16px;
         }
+        .como-empty-search {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 60px 24px;
+          width: 100%;
+        }
+        .como-empty-search h3 {
+          margin-top: 16px;
+          margin-bottom: 8px;
+          font-size: 18px;
+          font-weight: 700;
+          color: #ffffff;
+        }
+        .como-empty-search p {
+          font-size: 14px;
+          color: #71717A;
+          max-width: 320px;
+          margin: 0;
+          line-height: 1.5;
+        }
+        .como-empty-search .text-muted {
+          color: #71717A;
+        }
         .como-dish-card {
           display: flex;
           justify-content: space-between;
