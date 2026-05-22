@@ -145,9 +145,13 @@ export default function LandingPage() {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          height: 80px;
+          min-height: 80px;
+          height: auto;
           position: relative;
           z-index: 10;
+          flex-wrap: wrap;
+          gap: 16px;
+          padding: 10px 24px;
         }
 
         .brand {
@@ -485,7 +489,7 @@ export default function LandingPage() {
           }
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
           .landing-header {
             flex-direction: column;
             height: auto;
