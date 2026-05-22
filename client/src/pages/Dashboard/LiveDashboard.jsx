@@ -14,7 +14,8 @@ import {
   Flame,
   ShoppingBag,
   IndianRupee,
-  Zap
+  Zap,
+  CheckCircle2
 } from 'lucide-react';
 
 // ─── Sound Engine ────────────────────────────────────────────────────────────
@@ -213,11 +214,13 @@ export default function LiveDashboard() {
   // Stats
   const pendingOrders = orders.filter(o => o.status === 'Pending');
   const preparingOrders = orders.filter(o => o.status === 'Preparing');
-  const todayOrders = orders.filter(o => {
-    const d = new Date(o.created_at);
-    const today = new Date();
-    return d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-  });
+  const isToday = (iso) => {
+    const d = new Date(iso);
+    const t = new Date();
+    return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
+  };
+  const completedOrders = orders.filter(o => o.status === 'Completed' && isToday(o.created_at));
+  const todayOrders = orders.filter(o => isToday(o.created_at));
   const todayRevenue = todayOrders
     .filter(o => o.status !== 'Cancelled')
     .reduce((sum, o) => sum + (o.total_price || 0), 0);
@@ -308,7 +311,7 @@ export default function LiveDashboard() {
           <p>Connecting to live feed...</p>
         </div>
       ) : (
-        <div className="kds-board">
+        <div className="kds-board kds-board-3col">
 
           {/* ── Column: New Orders ── */}
           <div className="kds-column">
@@ -317,7 +320,6 @@ export default function LiveDashboard() {
               <h3>New Orders</h3>
               <span className="kds-col-count">{pendingOrders.length}</span>
             </div>
-
             <div className="kds-cards-list">
               {pendingOrders.length === 0 ? (
                 <div className="kds-empty-col glass">
@@ -348,7 +350,6 @@ export default function LiveDashboard() {
               <h3>In Kitchen</h3>
               <span className="kds-col-count">{preparingOrders.length}</span>
             </div>
-
             <div className="kds-cards-list">
               {preparingOrders.length === 0 ? (
                 <div className="kds-empty-col glass">
@@ -367,6 +368,52 @@ export default function LiveDashboard() {
                     onCancel={(id) => updateStatus(id, 'Cancelled')}
                     onComplete={(id) => updateStatus(id, 'Completed')}
                   />
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* ── Column: Completed Today ── */}
+          <div className="kds-column">
+            <div className="kds-col-header kds-col-completed">
+              <span className="kds-col-dot dot-completed" />
+              <h3>Completed Today</h3>
+              <span className="kds-col-count kds-col-count-done">{completedOrders.length}</span>
+            </div>
+            <div className="kds-cards-list">
+              {completedOrders.length === 0 ? (
+                <div className="kds-empty-col glass">
+                  <CheckCircle2 size={32} />
+                  <p>No completed orders yet</p>
+                  <span>Orders marked as Food Ready will appear here</span>
+                </div>
+              ) : (
+                completedOrders.map(order => (
+                  <div key={order.id} className="kds-order-card kds-done-card glass">
+                    <div className="kdc-top">
+                      <div className="kds-table-badge">
+                        <span>TABLE</span>
+                        <span className="kds-table-num">{order.table_number}</span>
+                      </div>
+                      <div className="kds-done-badge">
+                        <CheckCircle2 size={13} />
+                        <span>{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                    <div className="kds-items-list">
+                      {order.items.map((item, idx) => (
+                        <div key={idx} className="kds-item-row">
+                          <span className="kds-qty">{item.quantity}×</span>
+                          <span className="kds-iname">{item.name}</span>
+                          <span className="kds-iprice">{currency}{item.price * item.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="kds-total-row">
+                      <span>Total</span>
+                      <span className="kds-total-val done-total">{currency}{order.total_price}</span>
+                    </div>
+                  </div>
                 ))
               )}
             </div>
@@ -541,6 +588,9 @@ export default function LiveDashboard() {
           gap: 24px;
           align-items: start;
         }
+        .kds-board-3col {
+          grid-template-columns: 1fr 1fr 1fr;
+        }
 
         .kds-column {
           display: flex;
@@ -569,6 +619,7 @@ export default function LiveDashboard() {
         }
         .dot-pending { background: var(--primary); box-shadow: 0 0 8px var(--primary-glow); }
         .dot-preparing { background: var(--warning); box-shadow: 0 0 8px hsla(38, 92%, 50%, 0.4); }
+        .dot-completed { background: var(--success); box-shadow: 0 0 8px hsla(142, 72%, 40%, 0.4); }
 
         .kds-col-count {
           font-size: 12px;
@@ -580,6 +631,27 @@ export default function LiveDashboard() {
         }
         .kds-col-pending .kds-col-count { background: var(--primary-glow); color: var(--primary); }
         .kds-col-preparing .kds-col-count { background: hsla(38, 92%, 50%, 0.15); color: var(--warning); }
+        .kds-col-count-done { background: hsla(142, 72%, 40%, 0.15) !important; color: var(--success) !important; }
+
+        /* Completed column done badge */
+        .kds-done-badge {
+          display: flex;
+          align-items: center;
+          gap: 5px;
+          font-size: 12px;
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: var(--radius-full);
+          background: hsla(142, 72%, 40%, 0.12);
+          color: var(--success);
+          border: 1px solid hsla(142, 72%, 40%, 0.25);
+        }
+        .kds-done-card {
+          opacity: 0.75;
+          border-left: 4px solid var(--success) !important;
+        }
+        .kds-done-card:hover { opacity: 1; }
+        .done-total { color: var(--success) !important; }
 
         /* ─── Empty Column ─── */
         .kds-empty-col {
@@ -835,13 +907,16 @@ export default function LiveDashboard() {
         }
 
         /* ─── Responsive ─── */
-        @media (max-width: 1100px) {
+        @media (max-width: 1200px) {
+          .kds-board-3col {
+            grid-template-columns: 1fr 1fr;
+          }
           .kds-stats-bar {
             grid-template-columns: 1fr 1fr;
           }
         }
         @media (max-width: 768px) {
-          .kds-board {
+          .kds-board, .kds-board-3col {
             grid-template-columns: 1fr;
           }
           .kds-stats-bar {

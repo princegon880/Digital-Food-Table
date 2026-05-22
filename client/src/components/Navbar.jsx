@@ -9,7 +9,8 @@ import {
   Sparkles,
   Menu,
   X,
-  Activity
+  Activity,
+  ClipboardList
 } from 'lucide-react';
 import { api } from '../utils/api';
 
@@ -43,6 +44,7 @@ export default function Navbar() {
   const menuItems = [
     { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Live Kitchen', path: '/dashboard/live', icon: Activity, isLive: true },
+    { name: 'Order History', path: '/dashboard/orders', icon: ClipboardList },
     { name: 'Menu Builder', path: '/dashboard/menu', icon: UtensilsCrossed },
     { name: 'QR Code Generator', path: '/dashboard/qr', icon: QrCode },
     { name: 'Settings', path: '/dashboard/settings', icon: Settings },
