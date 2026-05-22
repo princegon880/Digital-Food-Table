@@ -1,7 +1,9 @@
 // In development (Vite dev server at port 5173) → call Express at port 5000
 // In production (Vercel or Express serving the SPA at port 5000) → use relative /api path
+const IS_DEV = import.meta.env.DEV || (window.location.port !== '' && window.location.port !== '5000');
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
-  window.location.port === '5173'
+  IS_DEV
     ? `http://${window.location.hostname}:5000/api`
     : '/api'
 );
@@ -82,9 +84,9 @@ export const resolveImageUrl = (url) => {
   if (url.includes('/uploads/')) {
     const uploadsIndex = url.indexOf('/uploads/');
     const relativePath = url.substring(uploadsIndex); // "/uploads/..."
-    // In dev (port 5173), uploads are served by Express at port 5000
-    // In production (Vercel or Express), use relative path
-    if (window.location.port === '5173') {
+    // In dev or preview, uploads are served by Express at port 5000
+    // In production (Vercel or Express serving SPA), use relative path
+    if (IS_DEV) {
       return `http://${window.location.hostname}:5000${relativePath}`;
     }
     return relativePath; // relative URL works for both Vercel and local Express

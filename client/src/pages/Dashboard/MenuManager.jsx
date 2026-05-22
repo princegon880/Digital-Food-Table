@@ -489,23 +489,26 @@ export default function MenuManager() {
           <div className="form-group">
             <label className="form-label">Dish Image</label>
             <div className="image-uploader-box">
-              {itemForm.imageUrl && !imageFile && (
+              {(itemForm.imageUrl || imageFile) && (
                 <div className="uploader-preview">
-                  <img src={resolveImageUrl(itemForm.imageUrl)} alt="preview" />
+                  <img src={imageFile ? URL.createObjectURL(imageFile) : resolveImageUrl(itemForm.imageUrl)} alt="preview" />
                   <button 
                     type="button" 
                     className="btn btn-danger btn-sm delete-img-btn"
-                    onClick={() => setItemForm({ ...itemForm, imageUrl: '' })}
+                    onClick={() => {
+                      setItemForm({ ...itemForm, imageUrl: '' });
+                      setImageFile(null);
+                    }}
                   >
                     Remove
                   </button>
                 </div>
               )}
 
-              {(!itemForm.imageUrl || imageFile) && (
+              {(!itemForm.imageUrl && !imageFile) && (
                 <div className="file-input-wrapper">
                   <Upload size={18} />
-                  <span>{imageFile ? imageFile.name : 'Choose File (Max 5MB)'}</span>
+                  <span>Choose File (Max 5MB)</span>
                   <input 
                     type="file" 
                     accept="image/*" 

@@ -235,13 +235,16 @@ export default function Settings() {
             <label className="form-label">Restaurant Cover Banner</label>
             
             <div className="cover-preview-container">
-              {coverImage ? (
+              {(coverImage || imageFile) ? (
                 <div className="settings-cover-preview">
-                  <img src={resolveImageUrl(coverImage)} alt="cover" />
+                  <img src={imageFile ? URL.createObjectURL(imageFile) : resolveImageUrl(coverImage)} alt="cover" />
                   <button 
                     type="button" 
                     className="btn btn-danger btn-sm remove-cover-btn"
-                    onClick={() => setCoverImage('')}
+                    onClick={() => {
+                      setCoverImage('');
+                      setImageFile(null);
+                    }}
                   >
                     Remove
                   </button>
