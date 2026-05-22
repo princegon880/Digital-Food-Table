@@ -244,18 +244,33 @@ router.put('/profile', requireAuth, async (req, res) => {
       updates.slug = cleanSlug;
     }
 
-    const { data: updatedProfile, error: dbError } = await supabase
+    let result = await supabase
       .from('profiles')
       .update(updates)
       .eq('id', req.user.id)
       .select()
       .single();
 
-    if (dbError) {
-      return res.status(400).json({ error: 'Failed to update profile: ' + dbError.message });
+    // If update fails due to missing columns (e.g. established_year or tagline), try updating without them
+    if (result.error && result.error.message && (result.error.message.includes('established_year') || result.error.message.includes('tagline'))) {
+      console.warn('DB columns established_year or tagline do not exist. Retrying profile update without them.');
+      const safeUpdates = { ...updates };
+      delete safeUpdates.established_year;
+      delete safeUpdates.tagline;
+      
+      result = await supabase
+        .from('profiles')
+        .update(safeUpdates)
+        .eq('id', req.user.id)
+        .select()
+        .single();
     }
 
-    res.json(updatedProfile);
+    if (result.error) {
+      return res.status(400).json({ error: 'Failed to update profile: ' + result.error.message });
+    }
+
+    res.json(result.data);
   } catch (err) {
     console.error('Update profile error:', err);
     res.status(500).json({ error: 'Server error updating profile' });

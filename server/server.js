@@ -82,7 +82,7 @@ app.get('/api/test-db', async (req, res) => {
     
     const testMenu = await supabase
       .from('profiles')
-      .select('id, restaurant_name, slug, phone_number, currency, cover_image, established_year, tagline')
+      .select('*')
       .ilike('slug', 'cafeajay')
       .single();
     

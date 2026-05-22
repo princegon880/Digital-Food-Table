@@ -16,7 +16,7 @@ router.get('/:slug', async (req, res) => {
     // 1. Fetch restaurant profile
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('id, restaurant_name, slug, phone_number, currency, cover_image, established_year, tagline')
+      .select('*')
       .ilike('slug', slug.trim())
       .single();
 
