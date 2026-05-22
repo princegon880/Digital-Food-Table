@@ -8,7 +8,8 @@ import {
   LogOut,
   Sparkles,
   Menu,
-  X
+  X,
+  Activity
 } from 'lucide-react';
 import { api } from '../utils/api';
 
@@ -41,6 +42,7 @@ export default function Navbar() {
 
   const menuItems = [
     { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
+    { name: 'Live Kitchen', path: '/dashboard/live', icon: Activity, isLive: true },
     { name: 'Menu Builder', path: '/dashboard/menu', icon: UtensilsCrossed },
     { name: 'QR Code Generator', path: '/dashboard/qr', icon: QrCode },
     { name: 'Settings', path: '/dashboard/settings', icon: Settings },
@@ -109,11 +111,12 @@ export default function Navbar() {
               <li key={item.path}>
                 <Link 
                   to={item.path} 
-                  className={`nav-link-item ${isActive ? 'active' : ''}`}
+                  className={`nav-link-item ${isActive ? 'active' : ''} ${item.isLive ? 'live-nav-item' : ''}`}
                   onClick={() => setIsOpen(false)}
                 >
                   <Icon size={18} />
                   <span>{item.name}</span>
+                  {item.isLive && <span className="nav-live-dot" />}
                 </Link>
               </li>
             );
@@ -263,6 +266,24 @@ export default function Navbar() {
           background: rgba(255, 70, 70, 0.1);
           color: var(--danger);
           border-color: rgba(255, 70, 70, 0.2);
+        }
+
+        /* Live nav item */
+        .live-nav-item {
+          position: relative;
+        }
+        .nav-live-dot {
+          width: 8px;
+          height: 8px;
+          background: var(--success);
+          border-radius: 50%;
+          margin-left: auto;
+          flex-shrink: 0;
+          animation: live-pulse 1.8s ease-in-out infinite;
+        }
+        @keyframes live-pulse {
+          0%, 100% { box-shadow: 0 0 0 0 hsla(142, 72%, 40%, 0.7); }
+          50% { box-shadow: 0 0 0 5px hsla(142, 72%, 40%, 0); }
         }
 
         /* Mobile Top Bar default hidden */

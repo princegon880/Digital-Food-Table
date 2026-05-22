@@ -8,6 +8,7 @@ import MenuManager from './pages/Dashboard/MenuManager';
 import QrGenerator from './pages/Dashboard/QrGenerator';
 import Settings from './pages/Dashboard/Settings';
 import CustomerMenu from './pages/CustomerMenu';
+import LiveDashboard from './pages/Dashboard/LiveDashboard';
 
 // Protected Route Wrapper
 function ProtectedRoute({ children }) {
@@ -32,6 +33,7 @@ function DashboardLayout() {
           <Route path="menu" element={<MenuManager />} />
           <Route path="qr" element={<QrGenerator />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="live" element={<LiveDashboard />} />
         </Routes>
       </main>
 
