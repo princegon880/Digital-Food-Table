@@ -1247,6 +1247,8 @@ export default function CustomerMenu() {
           text-align: center;
           padding: 60px 24px;
           width: 100%;
+          min-height: 350px;
+          margin: 0 auto;
         }
         .como-empty-search h3 {
           margin-top: 16px;
@@ -1254,16 +1256,21 @@ export default function CustomerMenu() {
           font-size: 18px;
           font-weight: 700;
           color: #ffffff;
+          text-align: center;
+          width: 100%;
         }
         .como-empty-search p {
           font-size: 14px;
           color: #71717A;
           max-width: 320px;
-          margin: 0;
+          margin: 0 auto;
           line-height: 1.5;
+          text-align: center;
+          width: 100%;
         }
         .como-empty-search .text-muted {
           color: #71717A;
+          margin: 0 auto;
         }
         .como-dish-card {
           display: flex;
