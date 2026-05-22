@@ -104,6 +104,20 @@ body {
   padding: 0 24px;
 }
 
+/* Brand Logo Styling */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-brand);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+.logo-icon {
+  color: var(--primary);
+}
+
 /* Typography */
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-brand);

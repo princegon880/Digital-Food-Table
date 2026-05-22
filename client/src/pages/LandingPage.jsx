@@ -484,6 +484,64 @@ export default function LandingPage() {
             height: 350px;
           }
         }
+
+        @media (max-width: 600px) {
+          .landing-header {
+            flex-direction: column;
+            height: auto;
+            padding: 20px 24px;
+            gap: 16px;
+          }
+          .header-actions {
+            width: 100%;
+            justify-content: center;
+          }
+          .hero-buttons {
+            flex-direction: column;
+            align-items: stretch;
+            width: 100%;
+            max-width: 320px;
+            margin: 0 auto;
+          }
+          .hero-buttons .btn {
+            width: 100%;
+            justify-content: center;
+          }
+          .hero-mockup {
+            height: 300px;
+            width: 100%;
+          }
+          .qr-card {
+            left: 5%;
+            top: 5%;
+            transform: scale(0.85) rotate(-10deg);
+          }
+          .phone-card {
+            right: 5%;
+            bottom: 5%;
+            transform: scale(0.85) rotate(5deg);
+          }
+        }
+
+        @media (max-width: 400px) {
+          .hero-mockup {
+            height: 250px;
+          }
+          .qr-card {
+            width: 130px;
+            padding: 12px;
+            left: 2%;
+            top: 5%;
+            transform: scale(0.8) rotate(-10deg);
+          }
+          .phone-card {
+            width: 180px;
+            height: 280px;
+            right: 2%;
+            bottom: 5%;
+            transform: scale(0.8) rotate(5deg);
+          }
+        }
       `}</style>
     </div>
   );
