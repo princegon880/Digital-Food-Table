@@ -199,7 +199,7 @@ export default function LandingPage() {
           display: grid;
           grid-template-columns: 1.1fr 0.9fr;
           gap: 60px;
-          padding: 80px 24px;
+          padding: 60px 24px 80px 24px;
           align-items: center;
           position: relative;
           z-index: 5;
@@ -474,6 +474,7 @@ export default function LandingPage() {
             grid-template-columns: 1fr;
             text-align: center;
             gap: 40px;
+            padding: 40px 24px 60px 24px;
           }
           .tagline {
             align-self: center;
@@ -495,6 +496,9 @@ export default function LandingPage() {
             height: auto;
             padding: 20px 24px;
             gap: 16px;
+          }
+          .hero-section {
+            padding: 20px 24px 50px 24px;
           }
           .header-actions {
             width: 100%;
