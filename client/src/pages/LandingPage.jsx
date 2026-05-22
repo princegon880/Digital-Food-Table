@@ -199,7 +199,7 @@ export default function LandingPage() {
           display: grid;
           grid-template-columns: 1.1fr 0.9fr;
           gap: 60px;
-          padding: 60px 24px 80px 24px;
+          padding: 40px 24px 80px 24px;
           align-items: center;
           position: relative;
           z-index: 5;
