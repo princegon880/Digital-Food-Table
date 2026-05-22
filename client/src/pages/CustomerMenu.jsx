@@ -192,7 +192,7 @@ export default function CustomerMenu() {
     const total = getCartTotal();
 
     try {
-      // 1. Format WhatsApp Redirect Message
+      // 1. Format WhatsApp message
       const currency = restaurant.currency || '₹';
       let message = `*NEW ORDER - ${restaurant.restaurant_name}*\n`;
       message += `*Table:* ${tableNumber}\n`;
@@ -215,7 +215,7 @@ export default function CustomerMenu() {
       }
       const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
 
-      // 2. Clear cart and set simulated success receipt view
+      // 2. Clear cart and show success screen immediately
       const simulatedOrder = {
         table_number: tableNumber,
         items: cartItemsList,
@@ -227,8 +227,26 @@ export default function CustomerMenu() {
       setCartOpen(false);
       setOrderPlaced(true);
 
-      // 3. Redirect to WhatsApp
+      // 3. PRIMARY — Open WhatsApp right away (no await, no delay)
       window.open(whatsappUrl, '_blank');
+
+      // 4. SECONDARY — Silently save order to Live Kitchen database
+      //    Runs in parallel; failure does NOT affect the customer's WhatsApp flow.
+      api.post('/orders', {
+        restaurantSlug: slug,
+        tableNumber: tableNumber,
+        items: cartItemsList.map(item => ({
+          id: item.id,
+          name: item.name,
+          price: item.price,
+          quantity: item.quantity
+        })),
+        totalPrice: total
+      }).catch(err => {
+        // Silent fail — WhatsApp already opened, customer is unaffected
+        console.warn('Live Kitchen save failed (WhatsApp order still sent):', err.message);
+      });
+
     } catch (err) {
       alert('Order placement failed: ' + err.message);
     }
@@ -430,7 +448,7 @@ export default function CustomerMenu() {
               <CheckCircle className="success-icon" size={32} />
             </div>
             <h2>Order Sent to Kitchen!</h2>
-            <p className="success-desc">We have received your order. We've redirecting you to WhatsApp to confirm details.</p>
+            <p className="success-desc">Your order is being sent via WhatsApp and has been recorded in our kitchen system. 🎉</p>
             
             <div className="como-receipt-box">
               <div className="receipt-header">
