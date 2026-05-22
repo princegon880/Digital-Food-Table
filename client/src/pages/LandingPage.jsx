@@ -43,7 +43,6 @@ export default function LandingPage() {
               <span>Create Your Menu</span>
               <ChevronRight size={18} />
             </Link>
-            <Link to="/login" className="btn btn-secondary btn-lg">Dashboard Demo</Link>
           </div>
           <div className="hero-stats">
             <div className="stat-item">
