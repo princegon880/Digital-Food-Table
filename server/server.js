@@ -80,6 +80,18 @@ app.get('/api/test-db', async (req, res) => {
     const start = Date.now();
     const { data, error } = await supabase.from('profiles').select('restaurant_name, slug');
     
+    const testMenu = await supabase
+      .from('profiles')
+      .select('id, restaurant_name, slug, phone_number, currency, cover_image, established_year, tagline')
+      .ilike('slug', 'cafeajay')
+      .single();
+    
+    diagnostics.test_menu_query = {
+      success: !testMenu.error,
+      error: testMenu.error,
+      data: testMenu.data
+    };
+
     diagnostics.query_time_ms = Date.now() - start;
     
     if (error) {
