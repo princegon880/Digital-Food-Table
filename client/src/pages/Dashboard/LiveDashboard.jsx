@@ -430,18 +430,10 @@ export default function LiveDashboard() {
                       {/* Expanded detail breakdown */}
                       {isExpanded && (
                         <div className="done-detail-body">
-                          <div className="done-detail-head">
-                            <span>Item</span>
-                            <span>Qty</span>
-                            <span>Unit</span>
-                            <span>Subtotal</span>
-                          </div>
                           {order.items.map((item, idx) => (
                             <div key={idx} className="done-detail-row">
                               <span className="ddr-name">{item.name}</span>
-                              <span className="ddr-qty">{item.quantity}</span>
-                              <span className="ddr-unit">{currency}{item.price}</span>
-                              <span className="ddr-sub">{currency}{item.price * item.quantity}</span>
+                              <span className="ddr-meta">{item.quantity}× · {currency}{item.price} each · <strong>{currency}{item.price * item.quantity}</strong></span>
                             </div>
                           ))}
                           <div className="done-detail-total">
@@ -733,37 +725,34 @@ export default function LiveDashboard() {
         .done-detail-body {
           display: flex;
           flex-direction: column;
-          gap: 0;
+          gap: 6px;
           animation: kds-done-slide 0.2s ease-out forwards;
         }
         @keyframes kds-done-slide {
           from { opacity: 0; transform: translateY(-6px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .done-detail-head {
-          display: grid;
-          grid-template-columns: 1fr 40px 70px 80px;
-          font-size: 10px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          color: var(--text-dark-muted);
-          padding-bottom: 6px;
-          border-bottom: 1px solid var(--border-dark);
-          margin-bottom: 4px;
-        }
         .done-detail-row {
-          display: grid;
-          grid-template-columns: 1fr 40px 70px 80px;
-          font-size: 13px;
-          padding: 5px 0;
-          border-bottom: 1px dashed rgba(255,255,255,0.04);
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          padding: 6px 0;
+          border-bottom: 1px dashed rgba(255,255,255,0.06);
         }
         .done-detail-row:last-child { border-bottom: none; }
-        .ddr-name { color: var(--text-dark-secondary); }
-        .ddr-qty  { color: var(--primary); font-weight: 800; font-family: var(--font-brand); }
-        .ddr-unit { color: var(--text-dark-muted); font-size: 12px; }
-        .ddr-sub  { color: var(--text-dark-primary); font-weight: 600; }
+        .ddr-name {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-dark-secondary);
+        }
+        .ddr-meta {
+          font-size: 12px;
+          color: var(--text-dark-muted);
+        }
+        .ddr-meta strong {
+          color: var(--text-dark-primary);
+          font-weight: 700;
+        }
         .done-detail-total {
           display: flex;
           justify-content: space-between;
