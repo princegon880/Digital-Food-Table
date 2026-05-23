@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   restaurant_name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
   phone_number TEXT NOT NULL,
+  email TEXT,
   currency TEXT DEFAULT '₹',
   cover_image TEXT DEFAULT '',
   established_year TEXT DEFAULT '2026',
@@ -108,3 +109,26 @@ CREATE POLICY "Allow owners to manage/read orders"
   ON public.orders FOR ALL 
   USING (auth.uid() = restaurant_id)
   WITH CHECK (auth.uid() = restaurant_id);
+
+-- 5. OTPS (Email One-Time Password Verification)
+CREATE TABLE IF NOT EXISTS public.otps (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  email TEXT NOT NULL,
+  otp_code TEXT NOT NULL,
+  expires_at TIMESTAMPTZ NOT NULL,
+  verified BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS for OTPS
+ALTER TABLE public.otps ENABLE ROW LEVEL SECURITY;
+
+-- OTPS Policies
+CREATE POLICY "Allow public insert to otps" 
+  ON public.otps FOR INSERT 
+  WITH CHECK (true);
+
+CREATE POLICY "Allow public select/update to check otp" 
+  ON public.otps FOR ALL 
+  USING (true)
+  WITH CHECK (true);

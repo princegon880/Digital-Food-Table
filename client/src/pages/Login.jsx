@@ -1,21 +1,55 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
-import { Sparkles, Phone, Lock, AlertCircle, Loader } from 'lucide-react';
+import { Sparkles, Phone, Mail, Lock, AlertCircle, CheckCircle2, Loader, ArrowLeft, KeyRound } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [view, setView] = useState('login'); // 'login', 'forgot-send', 'forgot-reset'
+  const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
 
-  const handleSubmit = async (e) => {
+  // Forgot password states
+  const [resetEmail, setResetEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // OTP states for reset password verification
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [timer, setTimer] = useState(30);
+  const inputRefs = useRef([]);
+
+  // Timer effect for OTP resend countdown
+  useEffect(() => {
+    let interval = null;
+    if (view === 'forgot-reset' && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [view, timer]);
+
+  // Focus the first OTP input when transitioning to forgot-reset
+  useEffect(() => {
+    if (view === 'forgot-reset' && inputRefs.current[0]) {
+      setTimeout(() => {
+        inputRefs.current[0].focus();
+      }, 100);
+    }
+  }, [view]);
+
+  // Handle standard login
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     setLoading(true);
 
-    if (!phoneNumber || !password) {
+    if (!emailOrPhone || !password) {
       setError('Please fill in all fields.');
       setLoading(false);
       return;
@@ -23,7 +57,7 @@ export default function Login() {
 
     try {
       const data = await api.post('/auth/login', {
-        phoneNumber,
+        phoneNumber: emailOrPhone, // the backend resolves email or phone automatically
         password
       });
 
@@ -34,10 +68,164 @@ export default function Login() {
 
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Invalid phone number or password.');
+      setError(err.message || 'Invalid email/phone number or password.');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Handle sending Forgot Password OTP
+  const handleSendResetOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setLoading(true);
+
+    if (!resetEmail) {
+      setError('Please enter your email address.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      await api.post('/auth/forgot-password/send-otp', {
+        email: resetEmail
+      });
+      setView('forgot-reset');
+      setTimer(30);
+    } catch (err) {
+      setError(err.message || 'Failed to send OTP code. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle resetting password with OTP code
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+
+    const otpCode = otp.join('');
+    if (otpCode.length < 6) {
+      setError('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    if (!newPassword || !confirmPassword) {
+      setError('Please enter and confirm your new password.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      await api.post('/auth/forgot-password/reset', {
+        email: resetEmail,
+        otpCode,
+        newPassword
+      });
+      
+      setSuccessMessage('Password reset successfully! Please log in with your new password.');
+      setView('login');
+      // Reset input fields
+      setEmailOrPhone(resetEmail);
+      setPassword('');
+      setResetEmail('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setOtp(['', '', '', '', '', '']);
+    } catch (err) {
+      setError(err.message || 'Failed to reset password. Please verify the code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend OTP for forgot password
+  const handleResendResetOtpCode = async () => {
+    if (timer > 0) return;
+    setError('');
+    setLoading(true);
+    try {
+      await api.post('/auth/forgot-password/send-otp', {
+        email: resetEmail
+      });
+      setTimer(30);
+      setOtp(['', '', '', '', '', '']);
+      if (inputRefs.current[0]) {
+        inputRefs.current[0].focus();
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to resend verification code.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // OTP field handlers
+  const handleChange = (element, index) => {
+    const val = element.value;
+    if (isNaN(val)) return false;
+
+    const newOtp = [...otp];
+    newOtp[index] = val.substring(val.length - 1);
+    setOtp(newOtp);
+
+    // Focus next input
+    if (val !== '' && index < 5) {
+      inputRefs.current[index + 1].focus();
+    }
+  };
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'Backspace') {
+      const newOtp = [...otp];
+      if (otp[index] === '') {
+        // If current is empty, delete previous and focus previous
+        if (index > 0) {
+          newOtp[index - 1] = '';
+          setOtp(newOtp);
+          inputRefs.current[index - 1].focus();
+        }
+      } else {
+        // If current is not empty, delete current
+        newOtp[index] = '';
+        setOtp(newOtp);
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData('text').trim();
+    if (pasteData.length === 6 && /^\d+$/.test(pasteData)) {
+      const newOtp = pasteData.split('');
+      setOtp(newOtp);
+      newOtp.forEach((char, index) => {
+        if (inputRefs.current[index]) {
+          inputRefs.current[index].value = char;
+          inputRefs.current[index].focus();
+        }
+      });
+    }
+  };
+
+  const renderIcon = () => {
+    if (emailOrPhone.includes('@')) {
+      return <Mail className="input-icon" size={18} />;
+    }
+    return <Phone className="input-icon" size={18} />;
   };
 
   return (
@@ -50,8 +238,24 @@ export default function Login() {
             <Sparkles className="logo-icon" size={24} />
             <span>QR Dine</span>
           </Link>
-          <h2>Welcome Back</h2>
-          <p>Login to manage your digital restaurant menu</p>
+          {view === 'login' && (
+            <>
+              <h2>Welcome Back</h2>
+              <p>Login to manage your digital restaurant menu</p>
+            </>
+          )}
+          {view === 'forgot-send' && (
+            <>
+              <h2>Reset Password</h2>
+              <p>Enter your email to receive a password reset code</p>
+            </>
+          )}
+          {view === 'forgot-reset' && (
+            <>
+              <h2>Enter Verification Code</h2>
+              <p>We sent a reset OTP code to <strong>{resetEmail}</strong></p>
+            </>
+          )}
         </div>
 
         {error && (
@@ -61,52 +265,218 @@ export default function Login() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          <div className="form-group">
-            <label className="form-label">Phone Number</label>
-            <div className="input-with-icon">
-              <Phone className="input-icon" size={18} />
-              <input 
-                type="tel"
-                className="form-control"
-                placeholder="e.g. 9876543210"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                required
-              />
-            </div>
+        {successMessage && (
+          <div className="auth-success">
+            <CheckCircle2 size={16} />
+            <span>{successMessage}</span>
           </div>
+        )}
 
-          <div className="form-group">
-            <label className="form-label">Password</label>
-            <div className="input-with-icon">
-              <Lock className="input-icon" size={18} />
-              <input 
-                type="password"
-                className="form-control"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+        {view === 'login' && (
+          <form onSubmit={handleLoginSubmit} className="auth-form">
+            <div className="form-group">
+              <label className="form-label">Email or Phone Number</label>
+              <div className="input-with-icon">
+                {renderIcon()}
+                <input 
+                  type="text"
+                  className="form-control"
+                  placeholder="e.g. owner@example.com or 919876543210"
+                  value={emailOrPhone}
+                  onChange={(e) => setEmailOrPhone(e.target.value)}
+                  required
+                />
+              </div>
             </div>
-          </div>
 
-          <button 
-            type="submit" 
-            className="btn btn-primary auth-submit-btn"
-            disabled={loading}
-          >
-            {loading ? (
-              <>
-                <Loader className="spinner" size={16} />
-                <span>Logging In...</span>
-              </>
-            ) : (
-              <span>Log In</span>
-            )}
-          </button>
-        </form>
+            <div className="form-group">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Password</label>
+                <button 
+                  type="button" 
+                  onClick={() => { setView('forgot-send'); setError(''); setSuccessMessage(''); }}
+                  className="auth-link-btn"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+              <div className="input-with-icon">
+                <Lock className="input-icon" size={18} />
+                <input 
+                  type="password"
+                  className="form-control"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              className="btn btn-primary auth-submit-btn"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader className="spinner" size={16} />
+                  <span>Logging In...</span>
+                </>
+              ) : (
+                <span>Log In</span>
+              )}
+            </button>
+          </form>
+        )}
+
+        {view === 'forgot-send' && (
+          <form onSubmit={handleSendResetOtp} className="auth-form">
+            <div className="form-group">
+              <label className="form-label">Email Address</label>
+              <div className="input-with-icon">
+                <Mail className="input-icon" size={18} />
+                <input 
+                  type="email"
+                  className="form-control"
+                  placeholder="owner@example.com"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              className="btn btn-primary auth-submit-btn"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader className="spinner" size={16} />
+                  <span>Sending OTP...</span>
+                </>
+              ) : (
+                <span>Send Reset Code</span>
+              )}
+            </button>
+
+            <div className="back-btn-container">
+              <button 
+                type="button" 
+                onClick={() => { setView('login'); setError(''); }} 
+                className="back-btn"
+                disabled={loading}
+              >
+                <ArrowLeft size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                Back to Login
+              </button>
+            </div>
+          </form>
+        )}
+
+        {view === 'forgot-reset' && (
+          <form onSubmit={handleResetPasswordSubmit} className="auth-form">
+            <div className="form-group" style={{ marginBottom: '20px' }}>
+              <label className="form-label" style={{ textAlign: 'center', display: 'block', marginBottom: '12px' }}>
+                Enter 6-Digit Code
+              </label>
+              <div className="otp-grid">
+                {otp.map((digit, idx) => (
+                  <input
+                    key={idx}
+                    type="text"
+                    maxLength={1}
+                    value={digit}
+                    ref={(el) => (inputRefs.current[idx] = el)}
+                    onChange={(e) => handleChange(e.target, idx)}
+                    onKeyDown={(e) => handleKeyDown(e, idx)}
+                    onPaste={handlePaste}
+                    className="otp-field"
+                    required
+                    disabled={loading}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">New Password</label>
+              <div className="input-with-icon">
+                <Lock className="input-icon" size={18} />
+                <input 
+                  type="password"
+                  className="form-control"
+                  placeholder="At least 6 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Confirm New Password</label>
+              <div className="input-with-icon">
+                <Lock className="input-icon" size={18} />
+                <input 
+                  type="password"
+                  className="form-control"
+                  placeholder="Repeat new password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            <button 
+              type="submit" 
+              className="btn btn-primary auth-submit-btn"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader className="spinner" size={16} />
+                  <span>Resetting Password...</span>
+                </>
+              ) : (
+                <span>Reset Password</span>
+              )}
+            </button>
+
+            <div className="resend-container">
+              {timer > 0 ? (
+                <span>Resend OTP in <strong style={{ color: 'var(--primary)' }}>{timer}s</strong></span>
+              ) : (
+                <span>
+                  Didn't receive code?{' '}
+                  <button 
+                    type="button" 
+                    onClick={handleResendResetOtpCode} 
+                    className="resend-btn"
+                    disabled={loading}
+                  >
+                    Resend Code
+                  </button>
+                </span>
+              )}
+            </div>
+
+            <div className="back-btn-container">
+              <button 
+                type="button" 
+                onClick={() => { setView('forgot-send'); setError(''); }} 
+                className="back-btn"
+                disabled={loading}
+              >
+                <ArrowLeft size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} />
+                Edit Email
+              </button>
+            </div>
+          </form>
+        )}
 
         <div className="auth-footer">
           <span>Don't have an account? </span>
@@ -191,10 +561,38 @@ export default function Login() {
           margin-bottom: 20px;
         }
 
+        .auth-success {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: rgba(46, 213, 115, 0.1);
+          border: 1px solid rgba(46, 213, 115, 0.2);
+          color: #2ed573;
+          padding: 10px 14px;
+          border-radius: var(--radius-md);
+          font-size: 13px;
+          margin-bottom: 20px;
+        }
+
         .auth-submit-btn {
           width: 100%;
           padding: 12px;
           margin-top: 10px;
+        }
+
+        .auth-link-btn {
+          background: none;
+          border: none;
+          color: var(--primary);
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          padding: 0;
+          transition: color 0.2s;
+        }
+        .auth-link-btn:hover {
+          color: var(--primary-hover);
+          text-decoration: underline;
         }
 
         .auth-footer {
@@ -218,6 +616,70 @@ export default function Login() {
         @keyframes spin {
           from { transform: rotate(0deg); }
           to { transform: rotate(360deg); }
+        }
+
+        .otp-grid {
+          display: flex;
+          gap: 8px;
+          justify-content: space-between;
+          margin: 10px 0;
+        }
+        .otp-field {
+          width: 48px;
+          height: 54px;
+          border-radius: var(--radius-md);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.04);
+          color: #fff;
+          font-size: 22px;
+          font-weight: 600;
+          text-align: center;
+          outline: none;
+          transition: all 0.2s ease-in-out;
+        }
+        .otp-field:focus {
+          border-color: var(--primary);
+          background: rgba(255, 255, 255, 0.08);
+          box-shadow: 0 0 0 3px var(--primary-glow);
+        }
+
+        .resend-container {
+          text-align: center;
+          margin-top: 20px;
+          font-size: 13px;
+          color: var(--text-dark-secondary);
+        }
+        .resend-btn {
+          background: none;
+          border: none;
+          color: var(--primary);
+          font-weight: 600;
+          cursor: pointer;
+          padding: 0;
+          text-decoration: underline;
+          transition: color 0.2s;
+        }
+        .resend-btn:hover {
+          color: var(--primary-hover);
+        }
+
+        .back-btn-container {
+          margin-top: 16px;
+          text-align: center;
+        }
+        .back-btn {
+          background: none;
+          border: none;
+          color: var(--text-dark-muted);
+          font-size: 13px;
+          cursor: pointer;
+          transition: color 0.2s;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .back-btn:hover {
+          color: var(--text-dark-primary);
         }
       `}</style>
     </div>

@@ -34,6 +34,10 @@ function matchFilter(row, filter) {
     }
   }
 
+  if (filter.operator === 'gt') {
+    return rowValue > filterValue;
+  }
+
   // default: 'eq' or undefined operator
   return rowValue == filterValue;
 }
@@ -119,6 +123,11 @@ class QueryBuilder {
     return this;
   }
 
+  gt(field, value) {
+    this.filters.push({ field, value, operator: 'gt' });
+    return this;
+  }
+
   order(field, options = { ascending: true }) {
     this.sortField = field;
     this.sortAscending = options.ascending !== false;
@@ -182,6 +191,10 @@ class QueryBuilder {
       const rowsToInsert = Array.isArray(this.actionPayload) 
         ? this.actionPayload 
         : [this.actionPayload];
+
+      if (!db[this.table]) {
+        db[this.table] = [];
+      }
 
       const insertedRows = rowsToInsert.map(row => {
         const newRow = { 
@@ -350,6 +363,15 @@ const authMock = {
       db.users = db.users.filter(u => u.id !== userId);
       writeDb(db);
       return { data: {}, error: null };
+    },
+    async updateUserById(userId, { password }) {
+      const db = readDb();
+      const user = db.users.find(u => u.id === userId);
+      if (user && password) {
+        user.password = password;
+        writeDb(db);
+      }
+      return { data: { user }, error: null };
     }
   }
 };
