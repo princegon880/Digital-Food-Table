@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supabase = require('../config/supabase');
 const requireAuth = require('../middleware/auth');
+const { sendOtpEmail } = require('../config/mail');
 
 // Helper to generate unique URL-friendly slug
 const generateUniqueSlug = async (restaurantName) => {
@@ -369,7 +370,6 @@ router.post('/register/send-otp', async (req, res) => {
     if (otpError) throw otpError;
 
     // 5. Send Email
-    const { sendOtpEmail } = require('../config/mail');
     await sendOtpEmail(cleanEmail, otpCode);
 
     res.json({ message: 'OTP sent successfully to your email' });
@@ -533,7 +533,6 @@ router.post('/forgot-password/send-otp', async (req, res) => {
     if (otpError) throw otpError;
 
     // 4. Send Email
-    const { sendOtpEmail } = require('../config/mail');
     await sendOtpEmail(cleanEmail, otpCode);
 
     res.json({ message: 'OTP sent successfully to your email' });
