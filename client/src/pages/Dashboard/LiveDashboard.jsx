@@ -614,18 +614,20 @@ export default function LiveDashboard() {
         /* ─── Board ─── */
         .kds-board {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
           gap: 24px;
           align-items: start;
         }
         .kds-board-3col {
-          grid-template-columns: 1fr 1fr 1fr;
+          grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
         }
 
         .kds-column {
           display: flex;
           flex-direction: column;
           gap: 16px;
+          min-width: 0;
+          overflow: hidden;
         }
 
         .kds-col-header {
@@ -795,6 +797,7 @@ export default function LiveDashboard() {
           display: flex;
           flex-direction: column;
           gap: 14px;
+          min-width: 0;
         }
 
         /* ─── Order Card ─── */
@@ -806,6 +809,9 @@ export default function LiveDashboard() {
           gap: 12px;
           border-left: 4px solid transparent;
           transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+          min-width: 0;
+          word-break: break-word;
+          overflow: hidden;
         }
         .kds-order-card:hover {
           border-color: rgba(255,255,255,0.1);
@@ -918,6 +924,10 @@ export default function LiveDashboard() {
         .kds-iname {
           flex-grow: 1;
           color: var(--text-dark-secondary);
+          overflow: hidden;
+          white-space: nowrap;
+          text-overflow: ellipsis;
+          min-width: 0;
         }
         .kds-iprice {
           font-size: 13px;
@@ -1027,7 +1037,7 @@ export default function LiveDashboard() {
         /* ─── Responsive ─── */
         @media (max-width: 1200px) {
           .kds-board-3col {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
           }
           .kds-stats-bar {
             grid-template-columns: 1fr 1fr;
@@ -1035,7 +1045,7 @@ export default function LiveDashboard() {
         }
         @media (max-width: 768px) {
           .kds-board, .kds-board-3col {
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr);
           }
           .kds-stats-bar {
             grid-template-columns: 1fr 1fr;
