@@ -19,7 +19,13 @@ if (host && port && user && pass) {
     }
   });
 } else {
-  console.log('Email Service not configured. OTP codes will be printed to console.');
+  console.log('Email Service not configured. Current state:', {
+    SMTP_HOST: host ? 'loaded' : 'missing',
+    SMTP_PORT: port ? 'loaded' : 'missing',
+    SMTP_USER: user ? 'loaded' : 'missing',
+    SMTP_PASS: pass ? 'loaded' : 'missing'
+  });
+  console.log('OTP codes will be printed to console.');
 }
 
 async function sendOtpEmail(email, otpCode) {
