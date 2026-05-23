@@ -94,7 +94,8 @@ export default function OrdersTracker() {
       setOrders(prev => prev.map(o => o.id === orderId ? { 
         ...o, 
         payment_status: updated.payment_status, 
-        payment_method: updated.payment_method 
+        payment_method: updated.payment_method,
+        paid_at: updated.paid_at
       } : o));
     } catch (err) {
       alert('Failed to update payment: ' + err.message);
@@ -115,12 +116,13 @@ export default function OrdersTracker() {
   const settledOrders = orders.filter(o => (o.status === 'Completed' && o.payment_status === 'Paid') || o.status === 'Cancelled');
 
   const isToday = (iso) => {
+    if (!iso) return false;
     const d = new Date(iso);
     const t = new Date();
     return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
   };
   const todayOrders = orders.filter(o => isToday(o.created_at));
-  const todayPaidOrders = todayOrders.filter(o => o.payment_status === 'Paid');
+  const todayPaidOrders = orders.filter(o => o.payment_status === 'Paid' && (isToday(o.paid_at) || isToday(o.created_at)));
   const todayCash = todayPaidOrders.filter(o => o.payment_method === 'Cash').reduce((sum, o) => sum + Number(o.total_price || 0), 0);
   const todayUPI = todayPaidOrders.filter(o => o.payment_method === 'UPI').reduce((sum, o) => sum + Number(o.total_price || 0), 0);
   const todayCard = todayPaidOrders.filter(o => o.payment_method === 'Card').reduce((sum, o) => sum + Number(o.total_price || 0), 0);
