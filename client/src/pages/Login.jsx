@@ -122,8 +122,9 @@ export default function Login() {
       return;
     }
 
-    if (newPassword.length < 6) {
-      setError('Password must be at least 6 characters long.');
+    const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      setError('Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total, e.g. abcd@123).');
       return;
     }
 
@@ -408,12 +409,15 @@ export default function Login() {
                 <input 
                   type="password"
                   className="form-control"
-                  placeholder="At least 6 characters"
+                  placeholder="e.g. abcd@123"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
                 />
               </div>
+              <span className="input-hint" style={{ fontSize: '11px', color: 'var(--text-dark-muted)', marginTop: '4px', display: 'block' }}>
+                At least 8 chars: 4 letters, followed by 1 special char, and ending with at least 3 numbers (e.g. abcd@123).
+              </span>
             </div>
 
             <div className="form-group">

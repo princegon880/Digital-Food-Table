@@ -57,6 +57,13 @@ export default function Register() {
       return;
     }
 
+    const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+    if (!passwordRegex.test(password)) {
+      setError('Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total, e.g. abcd@123).');
+      setLoading(false);
+      return;
+    }
+
     try {
       await api.post('/auth/register/send-otp', {
         restaurantName,
@@ -275,12 +282,15 @@ export default function Register() {
                 <input 
                   type="password"
                   className="form-control"
-                  placeholder="••••••••"
+                  placeholder="e.g. abcd@123"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
               </div>
+              <span className="input-hint" style={{ fontSize: '11px', color: 'var(--text-dark-muted)', marginTop: '4px', display: 'block' }}>
+                At least 8 chars: 4 letters, followed by 1 special char, and ending with at least 3 numbers (e.g. abcd@123).
+              </span>
             </div>
 
             <button 

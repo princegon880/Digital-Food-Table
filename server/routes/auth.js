@@ -52,6 +52,11 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
   }
 
+  const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({ error: 'Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total)' });
+  }
+
   const dummyEmail = `${cleanPhone}@qrmenu.com`;
 
   try {
@@ -311,6 +316,11 @@ router.post('/register/send-otp', async (req, res) => {
     return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
   }
 
+  const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({ error: 'Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total)' });
+  }
+
   const cleanEmail = email.trim().toLowerCase();
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(cleanEmail)) {
@@ -381,6 +391,11 @@ router.post('/register/verify-otp', async (req, res) => {
   const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
   if (cleanPhone.length !== 10) {
     return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
+  }
+
+  const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+  if (!passwordRegex.test(password)) {
+    return res.status(400).json({ error: 'Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total)' });
   }
   const cleanEmail = email.trim().toLowerCase();
 
@@ -539,8 +554,9 @@ router.post('/forgot-password/reset', async (req, res) => {
 
   const cleanEmail = email.trim().toLowerCase();
 
-  if (newPassword.length < 6) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters long' });
+  const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+  if (!passwordRegex.test(newPassword)) {
+    return res.status(400).json({ error: 'Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total)' });
   }
 
   try {
