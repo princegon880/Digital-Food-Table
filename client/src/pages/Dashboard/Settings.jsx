@@ -12,6 +12,7 @@ export default function Settings() {
   const [establishedYear, setEstablishedYear] = useState(profile.established_year || '2026');
   const [tagline, setTagline] = useState(profile.tagline || 'Premium Dining Experience');
   const [slug, setSlug] = useState(profile.slug || '');
+  const [flowMode, setFlowMode] = useState(profile.flow_mode || 'KDS');
   
   const [imageFile, setImageFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -34,6 +35,7 @@ export default function Settings() {
           setEstablishedYear(data.profile.established_year || '2026');
           setTagline(data.profile.tagline || 'Premium Dining Experience');
           setSlug(data.profile.slug || '');
+          setFlowMode(data.profile.flow_mode || 'KDS');
         }
       } catch (err) {
         console.error('Failed to fetch profile in settings:', err);
@@ -88,7 +90,8 @@ export default function Settings() {
         coverImage: finalCoverImage,
         establishedYear,
         tagline,
-        slug
+        slug,
+        flowMode
       });
 
       // Update local storage and state
@@ -198,6 +201,31 @@ export default function Settings() {
               />
             </div>
             <span className="input-hint">Include country code (e.g. 91 for India, 1 for USA) without + or spaces.</span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Dashboard Flow Mode</label>
+            <div className="input-with-icon">
+              <select 
+                className="form-control"
+                value={flowMode}
+                onChange={(e) => setFlowMode(e.target.value)}
+                style={{ 
+                  paddingLeft: '16px', 
+                  backgroundColor: 'rgba(255,255,255,0.02)', 
+                  border: '1px solid var(--border-dark)', 
+                  color: 'var(--text-dark-primary)',
+                  borderRadius: 'var(--radius-md)',
+                  height: '44px',
+                  width: '100%',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="KDS">Full Kitchen & Active Queues (KDS + Billing)</option>
+                <option value="Simple">Simple Order History Only (No KDS/Queues)</option>
+              </select>
+            </div>
+            <span className="input-hint">Select "Simple" to hide the KDS (Live Kitchen) and Active/Pending queues, focusing only on a simple Order History log.</span>
           </div>
 
           <div className="form-group">

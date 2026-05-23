@@ -69,17 +69,18 @@ router.post('/', async (req, res) => {
       // Use the first active unpaid order to merge
       const activeOrder = activeOrders[0];
 
-      // Merge items list
-      const mergedItems = [...activeOrder.items];
-      items.forEach(newItem => {
-        const existingItem = mergedItems.find(i => (i.id && i.id === newItem.id) || i.name === newItem.name);
-        if (existingItem) {
-          existingItem.quantity = Number(existingItem.quantity) + Number(newItem.quantity);
-        } else {
-          mergedItems.push(newItem);
-        }
-      });
+      // Calculate the next batch number
+      const nextBatchNum = Math.max(...activeOrder.items.map(i => i.batch || 1), 0) + 1;
 
+      // Add batch metadata to the new items
+      const newItemsWithBatch = items.map(item => ({
+        ...item,
+        batch: nextBatchNum,
+        ordered_at: new Date().toISOString()
+      }));
+
+      // Append items as a new batch section instead of merging quantities
+      const mergedItems = [...activeOrder.items, ...newItemsWithBatch];
       const newTotalPrice = parseFloat(activeOrder.total_price) + parseFloat(totalPrice);
 
       const { data: updatedOrder, error: updateError } = await supabase
@@ -99,13 +100,19 @@ router.post('/', async (req, res) => {
     }
 
     // 3. Otherwise, insert a new order
+    const itemsWithBatch = items.map(item => ({
+      ...item,
+      batch: 1,
+      ordered_at: new Date().toISOString()
+    }));
+
     const { data: newOrder, error: orderError } = await supabase
       .from('orders')
       .insert([
         {
           restaurant_id: restaurant.id,
           table_number: tableNumber,
-          items: items, // JSONB structure
+          items: itemsWithBatch, // JSONB structure
           total_price: parseFloat(totalPrice),
           status: 'Pending',
           payment_status: 'Unpaid',

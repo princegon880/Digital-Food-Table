@@ -64,6 +64,23 @@ function formatElapsed(s) {
   return rem > 0 ? `${m}m ${rem}s` : `${m}m`;
 }
 
+// Helper function to group items by batch
+const groupItemsByBatch = (items, orderCreatedAt) => {
+  const batchesMap = {};
+  items.forEach(item => {
+    const b = item.batch || 1;
+    if (!batchesMap[b]) {
+      batchesMap[b] = {
+        batchNum: b,
+        orderedAt: item.ordered_at || orderCreatedAt,
+        items: []
+      };
+    }
+    batchesMap[b].items.push(item);
+  });
+  return Object.values(batchesMap).sort((a, b) => a.batchNum - b.batchNum);
+};
+
 // ─── Single Order Card ────────────────────────────────────────────────────────
 function OrderCard({ order, currency, onAccept, onComplete, onCancel, isNew }) {
   const elapsed = useElapsedSeconds(order.created_at);
@@ -87,13 +104,23 @@ function OrderCard({ order, currency, onAccept, onComplete, onCancel, isNew }) {
         </div>
       </div>
 
-      {/* Items List */}
+      {/* Items List (Grouped by Batch) */}
       <div className="kds-items-list">
-        {order.items.map((item, idx) => (
-          <div key={idx} className="kds-item-row">
-            <span className="kds-qty">{item.quantity}×</span>
-            <span className="kds-iname">{item.name}</span>
-            <span className="kds-iprice">{currency}{item.price * item.quantity}</span>
+        {groupItemsByBatch(order.items, order.created_at).map((batch) => (
+          <div key={batch.batchNum} className="kds-batch-section">
+            <div className="kds-batch-header">
+              <span className="kds-batch-title">Order #{batch.batchNum}</span>
+              <span className="kds-batch-time">
+                {new Date(batch.orderedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            </div>
+            {batch.items.map((item, idx) => (
+              <div key={idx} className="kds-item-row">
+                <span className="kds-qty">{item.quantity}×</span>
+                <span className="kds-iname">{item.name}</span>
+                <span className="kds-iprice">{currency}{item.price * item.quantity}</span>
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -484,10 +511,20 @@ export default function LiveDashboard() {
                       {/* Expanded detail breakdown */}
                       {isExpanded && (
                         <div className="done-detail-body">
-                          {order.items.map((item, idx) => (
-                            <div key={idx} className="done-detail-row">
-                              <span className="ddr-name">{item.name}</span>
-                              <span className="ddr-meta">{item.quantity}× · {currency}{item.price} each · <strong>{currency}{item.price * item.quantity}</strong></span>
+                          {groupItemsByBatch(order.items, order.created_at).map((batch) => (
+                            <div key={batch.batchNum} className="kds-batch-section done-batch-section">
+                              <div className="kds-batch-header done-batch-header">
+                                <span className="kds-batch-title text-success">Order #{batch.batchNum}</span>
+                                <span className="kds-batch-time text-muted">
+                                  {new Date(batch.orderedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              {batch.items.map((item, idx) => (
+                                <div key={idx} className="done-detail-row">
+                                  <span className="ddr-name">{item.name}</span>
+                                  <span className="ddr-meta">{item.quantity}× · {currency}{item.price} each · <strong>{currency}{item.price * item.quantity}</strong></span>
+                                </div>
+                              ))}
                             </div>
                           ))}
                           <div className="done-detail-total">
@@ -546,6 +583,42 @@ export default function LiveDashboard() {
       )}
 
       <style>{`
+        /* ─── KDS Batch Sections ─── */
+        .kds-batch-section {
+          border-left: 2px solid rgba(255, 255, 255, 0.08);
+          padding-left: 10px;
+          margin-bottom: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .kds-batch-section:last-child {
+          margin-bottom: 0;
+        }
+        .kds-batch-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-dark-muted);
+          padding-bottom: 4px;
+          margin-bottom: 4px;
+          border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
+        }
+        .kds-batch-title {
+          color: var(--primary);
+        }
+        .kds-batch-time {
+          font-family: monospace;
+          color: var(--text-dark-muted);
+        }
+        .done-batch-section {
+          border-left-color: rgba(142, 252, 172, 0.15);
+        }
+
         /* ─── KDS Wrapper ─── */
         .kds-wrapper {
           display: flex;

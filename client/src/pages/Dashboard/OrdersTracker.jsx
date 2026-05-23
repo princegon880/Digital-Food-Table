@@ -12,6 +12,23 @@ import {
   CheckCircle2
 } from 'lucide-react';
 
+// Helper function to group items by batch
+const groupItemsByBatch = (items, orderCreatedAt) => {
+  const batchesMap = {};
+  items.forEach(item => {
+    const b = item.batch || 1;
+    if (!batchesMap[b]) {
+      batchesMap[b] = {
+        batchNum: b,
+        orderedAt: item.ordered_at || orderCreatedAt,
+        items: []
+      };
+    }
+    batchesMap[b].items.push(item);
+  });
+  return Object.values(batchesMap).sort((a, b) => a.batchNum - b.batchNum);
+};
+
 export default function OrdersTracker() {
   const [orders, setOrders] = useState([]);
   const [activeTab, setActiveTab] = useState('active'); // active or history
@@ -114,6 +131,10 @@ export default function OrdersTracker() {
   const pendingPaymentOrders = orders.filter(o => o.status === 'Completed' && o.payment_status !== 'Paid');
   const settledOrders = orders.filter(o => (o.status === 'Completed' && o.payment_status === 'Paid') || o.status === 'Cancelled');
 
+  const displayedOrders = profile.flow_mode === 'Simple'
+    ? orders
+    : (activeTab === 'pending_payment' ? pendingPaymentOrders : settledOrders);
+
   const isToday = (iso) => {
     if (!iso) return false;
     const d = new Date(iso);
@@ -135,29 +156,31 @@ export default function OrdersTracker() {
         </div>
 
         {/* Tab Selection */}
-        <div className="tab-buttons-container">
-          <button 
-            className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
-            onClick={() => setActiveTab('active')}
-          >
-            <span>Active Queue</span>
-            <span className="count">{activeOrders.length}</span>
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'pending_payment' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pending_payment')}
-          >
-            <span>Payment Pending 💳</span>
-            <span className="count">{pendingPaymentOrders.length}</span>
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'settled' ? 'active' : ''}`}
-            onClick={() => setActiveTab('settled')}
-          >
-            <span>Settled History 📜</span>
-            <span className="count">{settledOrders.length}</span>
-          </button>
-        </div>
+        {profile.flow_mode !== 'Simple' && (
+          <div className="tab-buttons-container">
+            <button 
+              className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
+              onClick={() => setActiveTab('active')}
+            >
+              <span>Active Queue</span>
+              <span className="count">{activeOrders.length}</span>
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'pending_payment' ? 'active' : ''}`}
+              onClick={() => setActiveTab('pending_payment')}
+            >
+              <span>Payment Pending 💳</span>
+              <span className="count">{pendingPaymentOrders.length}</span>
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'settled' ? 'active' : ''}`}
+              onClick={() => setActiveTab('settled')}
+            >
+              <span>Settled History 📜</span>
+              <span className="count">{settledOrders.length}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -173,7 +196,7 @@ export default function OrdersTracker() {
         </div>
       ) : (
         <>
-          {activeTab === 'active' ? (
+          {(activeTab === 'active' && profile.flow_mode !== 'Simple') ? (
             /* Kanban Kitchen columns */
             <div className="orders-board">
               
@@ -201,11 +224,21 @@ export default function OrdersTracker() {
                         </div>
                         
                         <div className="card-items-list">
-                          {order.items.map((item, idx) => (
-                            <div key={idx} className="card-item-row">
-                              <span className="item-qty">{item.quantity}x</span>
-                              <span className="item-name">{item.name}</span>
-                              <span className="item-sub">{profile.currency || '₹'}{item.price * item.quantity}</span>
+                          {groupItemsByBatch(order.items, order.created_at).map((batch) => (
+                            <div key={batch.batchNum} className="kds-batch-section">
+                              <div className="kds-batch-header">
+                                <span className="kds-batch-title">Order #{batch.batchNum}</span>
+                                <span className="kds-batch-time">
+                                  {new Date(batch.orderedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              {batch.items.map((item, idx) => (
+                                <div key={idx} className="card-item-row">
+                                  <span className="item-qty">{item.quantity}x</span>
+                                  <span className="item-name">{item.name}</span>
+                                  <span className="item-sub">{profile.currency || '₹'}{item.price * item.quantity}</span>
+                                </div>
+                              ))}
                             </div>
                           ))}
                         </div>
@@ -261,11 +294,21 @@ export default function OrdersTracker() {
                         </div>
 
                         <div className="card-items-list">
-                          {order.items.map((item, idx) => (
-                            <div key={idx} className="card-item-row">
-                              <span className="item-qty">{item.quantity}x</span>
-                              <span className="item-name">{item.name}</span>
-                              <span className="item-sub">{profile.currency || '₹'}{item.price * item.quantity}</span>
+                          {groupItemsByBatch(order.items, order.created_at).map((batch) => (
+                            <div key={batch.batchNum} className="kds-batch-section">
+                              <div className="kds-batch-header">
+                                <span className="kds-batch-title">Order #{batch.batchNum}</span>
+                                <span className="kds-batch-time">
+                                  {new Date(batch.orderedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              {batch.items.map((item, idx) => (
+                                <div key={idx} className="card-item-row">
+                                  <span className="item-qty">{item.quantity}x</span>
+                                  <span className="item-name">{item.name}</span>
+                                  <span className="item-sub">{profile.currency || '₹'}{item.price * item.quantity}</span>
+                                </div>
+                              ))}
                             </div>
                           ))}
                         </div>
@@ -321,8 +364,8 @@ export default function OrdersTracker() {
               </div>
 
               <div className="glass history-log animated" style={{ marginTop: '16px' }}>
-                <h3>{activeTab === 'pending_payment' ? 'Payment Pending Queue' : 'Settled Order History'}</h3>
-                {((activeTab === 'pending_payment' ? pendingPaymentOrders : settledOrders).length === 0) ? (
+                <h3>{profile.flow_mode === 'Simple' ? 'Order Log' : (activeTab === 'pending_payment' ? 'Payment Pending Queue' : 'Settled Order History')}</h3>
+                {(displayedOrders.length === 0) ? (
                   <div className="empty-state">
                     <ShoppingBag size={36} />
                     <p>No orders in this status.</p>
@@ -342,7 +385,7 @@ export default function OrdersTracker() {
                         </tr>
                       </thead>
                       <tbody>
-                        {(activeTab === 'pending_payment' ? pendingPaymentOrders : settledOrders).map((order) => {
+                        {displayedOrders.map((order) => {
                           const isExpanded = expandedOrderId === order.id;
                           return (
                             <>
@@ -400,12 +443,20 @@ export default function OrdersTracker() {
                                           <span>Unit Price</span>
                                           <span>Subtotal</span>
                                         </div>
-                                        {order.items.map((item, idx) => (
-                                          <div key={idx} className="detail-item-row">
-                                            <span className="di-name">{item.name}</span>
-                                            <span className="di-qty">{item.quantity}</span>
-                                            <span className="di-unit">{profile.currency || '₹'}{item.price}</span>
-                                            <span className="di-sub">{profile.currency || '₹'}{item.price * item.quantity}</span>
+                                        {groupItemsByBatch(order.items, order.created_at).map((batch) => (
+                                          <div key={batch.batchNum} className="detail-batch-section">
+                                            <div className="detail-batch-header">
+                                              <span>Order #{batch.batchNum}</span>
+                                              <span>{new Date(batch.orderedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                            </div>
+                                            {batch.items.map((item, idx) => (
+                                              <div key={idx} className="detail-item-row">
+                                                <span className="di-name">{item.name}</span>
+                                                <span className="di-qty">{item.quantity}</span>
+                                                <span className="di-unit">{profile.currency || '₹'}{item.price}</span>
+                                                <span className="di-sub">{profile.currency || '₹'}{item.price * item.quantity}</span>
+                                              </div>
+                                            ))}
                                           </div>
                                         ))}
                                       </div>
@@ -471,6 +522,56 @@ export default function OrdersTracker() {
       )}
 
       <style>{`
+        /* ─── Batch Sections ─── */
+        .kds-batch-section {
+          border-left: 2px solid rgba(255, 255, 255, 0.08);
+          padding-left: 10px;
+          margin-bottom: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .kds-batch-section:last-child {
+          margin-bottom: 0;
+        }
+        .kds-batch-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-dark-muted);
+          padding-bottom: 4px;
+          margin-bottom: 4px;
+          border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
+        }
+        .kds-batch-title {
+          color: var(--primary);
+        }
+        .kds-batch-time {
+          font-family: monospace;
+          color: var(--text-dark-muted);
+        }
+        .detail-batch-section {
+          margin-bottom: 12px;
+        }
+        .detail-batch-section:last-child {
+          margin-bottom: 0;
+        }
+        .detail-batch-header {
+          display: flex;
+          justify-content: space-between;
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          color: var(--primary);
+          padding: 8px 0 4px;
+          border-bottom: 1px dashed rgba(255, 255, 255, 0.06);
+          margin-bottom: 4px;
+        }
+
         .orders-tracker-wrapper {
           display: flex;
           flex-direction: column;

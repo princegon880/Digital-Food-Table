@@ -202,7 +202,7 @@ router.get('/me', requireAuth, async (req, res) => {
 // @desc    Update restaurant profile settings
 // @access  Private
 router.put('/profile', requireAuth, async (req, res) => {
-  const { restaurantName, phoneNumber, currency, coverImage, establishedYear, tagline, slug } = req.body;
+  const { restaurantName, phoneNumber, currency, coverImage, establishedYear, tagline, slug, flowMode } = req.body;
   const updates = {};
   
   if (restaurantName !== undefined) updates.restaurant_name = restaurantName;
@@ -213,6 +213,7 @@ router.put('/profile', requireAuth, async (req, res) => {
   if (coverImage !== undefined) updates.cover_image = coverImage;
   if (establishedYear !== undefined) updates.established_year = establishedYear;
   if (tagline !== undefined) updates.tagline = tagline;
+  if (flowMode !== undefined) updates.flow_mode = flowMode;
 
   try {
     if (slug !== undefined) {
@@ -251,12 +252,13 @@ router.put('/profile', requireAuth, async (req, res) => {
       .select()
       .single();
 
-    // If update fails due to missing columns (e.g. established_year or tagline), try updating without them
-    if (result.error && result.error.message && (result.error.message.includes('established_year') || result.error.message.includes('tagline'))) {
-      console.warn('DB columns established_year or tagline do not exist. Retrying profile update without them.');
+    // If update fails due to missing columns (e.g. established_year, tagline or flow_mode), try updating without them
+    if (result.error && result.error.message && (result.error.message.includes('established_year') || result.error.message.includes('tagline') || result.error.message.includes('flow_mode'))) {
+      console.warn('DB columns established_year, tagline or flow_mode do not exist. Retrying profile update without them.');
       const safeUpdates = { ...updates };
       delete safeUpdates.established_year;
       delete safeUpdates.tagline;
+      delete safeUpdates.flow_mode;
       
       result = await supabase
         .from('profiles')
