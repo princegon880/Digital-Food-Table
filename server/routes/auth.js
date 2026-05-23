@@ -48,8 +48,8 @@ router.post('/register', async (req, res) => {
 
   // Format phone number to clean text (no spaces, non-numeric)
   const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
-  if (cleanPhone.length < 8) {
-    return res.status(400).json({ error: 'Please enter a valid phone number' });
+  if (cleanPhone.length !== 10) {
+    return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
   }
 
   const dummyEmail = `${cleanPhone}@qrmenu.com`;
@@ -223,7 +223,11 @@ router.put('/profile', requireAuth, async (req, res) => {
   
   if (restaurantName !== undefined) updates.restaurant_name = restaurantName;
   if (phoneNumber !== undefined) {
-    updates.phone_number = phoneNumber.replace(/[^0-9]/g, '');
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    if (cleanPhone.length !== 10) {
+      return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
+    }
+    updates.phone_number = cleanPhone;
   }
   if (currency !== undefined) updates.currency = currency;
   if (coverImage !== undefined) updates.cover_image = coverImage;
@@ -303,8 +307,8 @@ router.post('/register/send-otp', async (req, res) => {
   }
 
   const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
-  if (cleanPhone.length < 8) {
-    return res.status(400).json({ error: 'Please enter a valid phone number' });
+  if (cleanPhone.length !== 10) {
+    return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
   }
 
   const cleanEmail = email.trim().toLowerCase();
@@ -375,6 +379,9 @@ router.post('/register/verify-otp', async (req, res) => {
   }
 
   const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+  if (cleanPhone.length !== 10) {
+    return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
+  }
   const cleanEmail = email.trim().toLowerCase();
 
   try {

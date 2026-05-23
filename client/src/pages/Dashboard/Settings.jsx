@@ -70,6 +70,13 @@ export default function Settings() {
     setSuccess(false);
     setError('');
 
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    if (cleanPhone.length !== 10) {
+      setError('WhatsApp number must be exactly 10 digits.');
+      setSaving(false);
+      return;
+    }
+
     try {
       let finalCoverImage = coverImage;
       if (imageFile) {
@@ -192,12 +199,13 @@ export default function Settings() {
                 type="tel" 
                 className="form-control"
                 value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="e.g. 91XXXXXXXXXX"
+                onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="e.g. 9876543210"
+                maxLength={10}
                 required
               />
             </div>
-            <span className="input-hint">Include country code (e.g. 91 for India, 1 for USA) without + or spaces.</span>
+            <span className="input-hint">10-digit mobile number without country code or spaces.</span>
           </div>
 
           <div className="form-group">

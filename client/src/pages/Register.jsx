@@ -50,6 +50,13 @@ export default function Register() {
       return;
     }
 
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    if (cleanPhone.length !== 10) {
+      setError('Phone number must be exactly 10 digits.');
+      setLoading(false);
+      return;
+    }
+
     try {
       await api.post('/auth/register/send-otp', {
         restaurantName,
@@ -249,14 +256,15 @@ export default function Register() {
                 <input 
                   type="tel"
                   className="form-control"
-                  placeholder="e.g. 919876543210"
+                  placeholder="e.g. 9876543210"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => setPhoneNumber(e.target.value.replace(/[^0-9]/g, ''))}
+                  maxLength={10}
                   required
                 />
               </div>
               <span className="input-hint" style={{ fontSize: '11px', color: 'var(--text-dark-muted)', marginTop: '4px', display: 'block' }}>
-                Include country code (e.g. 91 for India, 1 for USA) without + or spaces.
+                10-digit mobile number without country code or spaces.
               </span>
             </div>
 
