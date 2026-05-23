@@ -15,7 +15,8 @@ import {
   ShoppingBag,
   IndianRupee,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  ChevronDown
 } from 'lucide-react';
 
 // ─── Sound Engine ────────────────────────────────────────────────────────────
@@ -135,6 +136,7 @@ export default function LiveDashboard() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [pulse, setPulse] = useState(false);
+  const [expandedDoneId, setExpandedDoneId] = useState(null);
   const knownIdsRef = useRef(new Set());
   const wrapperRef = useRef(null);
   const profile = JSON.parse(localStorage.getItem('profile') || '{}');
@@ -388,33 +390,69 @@ export default function LiveDashboard() {
                   <span>Orders marked as Food Ready will appear here</span>
                 </div>
               ) : (
-                completedOrders.map(order => (
-                  <div key={order.id} className="kds-order-card kds-done-card glass">
-                    <div className="kdc-top">
-                      <div className="kds-table-badge">
-                        <span>TABLE</span>
-                        <span className="kds-table-num">{order.table_number}</span>
-                      </div>
-                      <div className="kds-done-badge">
-                        <CheckCircle2 size={13} />
-                        <span>{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                      </div>
-                    </div>
-                    <div className="kds-items-list">
-                      {order.items.map((item, idx) => (
-                        <div key={idx} className="kds-item-row">
-                          <span className="kds-qty">{item.quantity}×</span>
-                          <span className="kds-iname">{item.name}</span>
-                          <span className="kds-iprice">{currency}{item.price * item.quantity}</span>
+                completedOrders.map(order => {
+                  const isExpanded = expandedDoneId === order.id;
+                  return (
+                    <div
+                      key={order.id}
+                      className={`kds-order-card kds-done-card glass ${isExpanded ? 'done-card-open' : ''}`}
+                      onClick={() => setExpandedDoneId(isExpanded ? null : order.id)}
+                      style={{ cursor: 'pointer' }}
+                    >
+                      {/* Card top row */}
+                      <div className="kdc-top">
+                        <div className="kds-table-badge">
+                          <span>TABLE</span>
+                          <span className="kds-table-num">{order.table_number}</span>
                         </div>
-                      ))}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div className="kds-done-badge">
+                            <CheckCircle2 size={13} />
+                            <span>{new Date(order.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                          </div>
+                          <button
+                            className={`done-expand-btn ${isExpanded ? 'done-expanded' : ''}`}
+                            onClick={e => { e.stopPropagation(); setExpandedDoneId(isExpanded ? null : order.id); }}
+                            title={isExpanded ? 'Collapse' : 'View full order'}
+                          >
+                            <ChevronDown size={15} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Collapsed summary — items in one line */}
+                      {!isExpanded && (
+                        <div className="done-collapsed-summary">
+                          {order.items.map(i => `${i.quantity}× ${i.name}`).join(' · ')}
+                        </div>
+                      )}
+
+                      {/* Expanded detail breakdown */}
+                      {isExpanded && (
+                        <div className="done-detail-body">
+                          <div className="done-detail-head">
+                            <span>Item</span>
+                            <span>Qty</span>
+                            <span>Unit</span>
+                            <span>Subtotal</span>
+                          </div>
+                          {order.items.map((item, idx) => (
+                            <div key={idx} className="done-detail-row">
+                              <span className="ddr-name">{item.name}</span>
+                              <span className="ddr-qty">{item.quantity}</span>
+                              <span className="ddr-unit">{currency}{item.price}</span>
+                              <span className="ddr-sub">{currency}{item.price * item.quantity}</span>
+                            </div>
+                          ))}
+                          <div className="done-detail-total">
+                            <span>Grand Total</span>
+                            <span className="done-total-val">{currency}{order.total_price}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div className="kds-total-row">
-                      <span>Total</span>
-                      <span className="kds-total-val done-total">{currency}{order.total_price}</span>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>
@@ -647,11 +685,102 @@ export default function LiveDashboard() {
           border: 1px solid hsla(142, 72%, 40%, 0.25);
         }
         .kds-done-card {
-          opacity: 0.75;
+          opacity: 0.78;
           border-left: 4px solid var(--success) !important;
+          transition: opacity 0.2s, transform 0.2s;
         }
         .kds-done-card:hover { opacity: 1; }
+        .kds-done-card.done-card-open { opacity: 1; }
         .done-total { color: var(--success) !important; }
+
+        /* Expand button on done card */
+        .done-expand-btn {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          border: 1px solid hsla(142, 72%, 40%, 0.3);
+          background: hsla(142, 72%, 40%, 0.08);
+          color: var(--success);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          flex-shrink: 0;
+        }
+        .done-expand-btn:hover {
+          background: hsla(142, 72%, 40%, 0.2);
+          border-color: var(--success);
+          transform: scale(1.1);
+        }
+        .done-expand-btn.done-expanded {
+          background: hsla(142, 72%, 40%, 0.2);
+          border-color: var(--success);
+          transform: rotate(180deg);
+        }
+
+        /* Collapsed one-liner summary */
+        .done-collapsed-summary {
+          font-size: 13px;
+          color: var(--text-dark-muted);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          padding: 2px 0;
+        }
+
+        /* Expanded detail panel inside done card */
+        .done-detail-body {
+          display: flex;
+          flex-direction: column;
+          gap: 0;
+          animation: kds-done-slide 0.2s ease-out forwards;
+        }
+        @keyframes kds-done-slide {
+          from { opacity: 0; transform: translateY(-6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .done-detail-head {
+          display: grid;
+          grid-template-columns: 1fr 40px 70px 80px;
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: var(--text-dark-muted);
+          padding-bottom: 6px;
+          border-bottom: 1px solid var(--border-dark);
+          margin-bottom: 4px;
+        }
+        .done-detail-row {
+          display: grid;
+          grid-template-columns: 1fr 40px 70px 80px;
+          font-size: 13px;
+          padding: 5px 0;
+          border-bottom: 1px dashed rgba(255,255,255,0.04);
+        }
+        .done-detail-row:last-child { border-bottom: none; }
+        .ddr-name { color: var(--text-dark-secondary); }
+        .ddr-qty  { color: var(--primary); font-weight: 800; font-family: var(--font-brand); }
+        .ddr-unit { color: var(--text-dark-muted); font-size: 12px; }
+        .ddr-sub  { color: var(--text-dark-primary); font-weight: 600; }
+        .done-detail-total {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 8px;
+          padding-top: 10px;
+          border-top: 2px solid var(--border-dark);
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-dark-secondary);
+        }
+        .done-total-val {
+          font-family: var(--font-brand);
+          font-size: 17px;
+          font-weight: 800;
+          color: var(--success);
+        }
 
         /* ─── Empty Column ─── */
         .kds-empty-col {
