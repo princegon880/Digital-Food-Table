@@ -82,7 +82,7 @@ export default function OrdersTracker() {
   const updateStatus = async (orderId, newStatus) => {
     try {
       const updated = await api.put(`/orders/${orderId}/status`, { status: newStatus });
-      setOrders(orders.map(o => o.id === orderId ? { ...o, status: updated.status } : o));
+      setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: updated.status } : o));
     } catch (err) {
       alert('Failed to update status: ' + err.message);
     }
@@ -91,7 +91,7 @@ export default function OrdersTracker() {
   const updatePayment = async (orderId, paymentStatus, paymentMethod) => {
     try {
       const updated = await api.put(`/orders/${orderId}/payment`, { paymentStatus, paymentMethod });
-      setOrders(orders.map(o => o.id === orderId ? { 
+      setOrders(prev => prev.map(o => o.id === orderId ? { 
         ...o, 
         payment_status: updated.payment_status, 
         payment_method: updated.payment_method 
