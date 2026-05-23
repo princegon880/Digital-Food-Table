@@ -56,7 +56,14 @@ router.post('/', async (req, res) => {
       console.error('Error finding existing orders:', findError);
     }
 
-    const activeOrders = (existingOrders || []).filter(o => o.status !== 'Cancelled');
+    const isToday = (iso) => {
+      if (!iso) return false;
+      const d = new Date(iso);
+      const t = new Date();
+      return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
+    };
+
+    const activeOrders = (existingOrders || []).filter(o => o.status !== 'Cancelled' && isToday(o.created_at));
 
     if (activeOrders.length > 0) {
       // Use the first active unpaid order to merge
@@ -80,7 +87,8 @@ router.post('/', async (req, res) => {
         .update({
           items: mergedItems,
           total_price: newTotalPrice,
-          status: 'Pending' // Reset status to Pending so kitchen knows new items are added
+          status: 'Pending', // Reset status to Pending so kitchen knows new items are added
+          created_at: new Date().toISOString() // Refresh timestamp to now so it registers as new kitchen queue addition today
         })
         .eq('id', activeOrder.id)
         .select()

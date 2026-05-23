@@ -1,7 +1,7 @@
 const { createClient } = require('@supabase/supabase-js');
 
 const url = process.env.SUPABASE_URL;
-const key = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
+const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY;
 const isPlaceholderUrl = url && url.includes('your-project');
 const isPlaceholderKey = key && (key.includes('your-anon-key') || key.includes('your-service-role-key'));
 
