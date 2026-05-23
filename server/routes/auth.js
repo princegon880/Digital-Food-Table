@@ -52,9 +52,9 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
   }
 
-  const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+  const passwordRegex = /^[a-zA-Z]{4,}[^a-zA-Z0-9][0-9]{3,}$/;
   if (!passwordRegex.test(password)) {
-    return res.status(400).json({ error: 'Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total)' });
+    return res.status(400).json({ error: 'Password must start with at least 4 letters, 1 special character, and end with at least 3 digits' });
   }
 
   const dummyEmail = `${cleanPhone}@qrmenu.com`;
@@ -316,9 +316,9 @@ router.post('/register/send-otp', async (req, res) => {
     return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
   }
 
-  const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+  const passwordRegex = /^[a-zA-Z]{4,}[^a-zA-Z0-9][0-9]{3,}$/;
   if (!passwordRegex.test(password)) {
-    return res.status(400).json({ error: 'Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total)' });
+    return res.status(400).json({ error: 'Password must start with at least 4 letters, 1 special character, and end with at least 3 digits' });
   }
 
   const cleanEmail = email.trim().toLowerCase();
@@ -393,9 +393,9 @@ router.post('/register/verify-otp', async (req, res) => {
     return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
   }
 
-  const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+  const passwordRegex = /^[a-zA-Z]{4,}[^a-zA-Z0-9][0-9]{3,}$/;
   if (!passwordRegex.test(password)) {
-    return res.status(400).json({ error: 'Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total)' });
+    return res.status(400).json({ error: 'Password must start with at least 4 letters, 1 special character, and end with at least 3 digits' });
   }
   const cleanEmail = email.trim().toLowerCase();
 
@@ -554,9 +554,9 @@ router.post('/forgot-password/reset', async (req, res) => {
 
   const cleanEmail = email.trim().toLowerCase();
 
-  const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+  const passwordRegex = /^[a-zA-Z]{4,}[^a-zA-Z0-9][0-9]{3,}$/;
   if (!passwordRegex.test(newPassword)) {
-    return res.status(400).json({ error: 'Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total)' });
+    return res.status(400).json({ error: 'Password must start with at least 4 letters, 1 special character, and end with at least 3 digits' });
   }
 
   try {

@@ -122,9 +122,9 @@ export default function Login() {
       return;
     }
 
-    const passwordRegex = /^[a-zA-Z]{4}[^a-zA-Z0-9][0-9]{3,}$/;
+    const passwordRegex = /^[a-zA-Z]{4,}[^a-zA-Z0-9][0-9]{3,}$/;
     if (!passwordRegex.test(newPassword)) {
-      setError('Password must start with 4 letters, 1 special character, and end with at least 3 digits (minimum 8 characters total, e.g. abcd@123).');
+      setError('Password must start with at least 4 letters, 1 special character, and end with at least 3 digits (e.g. abcd@123).');
       return;
     }
 
