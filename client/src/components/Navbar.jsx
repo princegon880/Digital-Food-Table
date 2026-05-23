@@ -43,7 +43,7 @@ export default function Navbar() {
 
   const menuItems = [
     { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
-    ...(profile.flow_mode !== 'Simple' ? [{ name: 'Live Kitchen', path: '/dashboard/live', icon: Activity, isLive: true }] : []),
+    { name: 'Live Kitchen', path: '/dashboard/live', icon: Activity, isLive: true },
     { name: 'Order History', path: '/dashboard/orders', icon: ClipboardList },
     { name: 'Menu Builder', path: '/dashboard/menu', icon: UtensilsCrossed },
     { name: 'QR Code Generator', path: '/dashboard/qr', icon: QrCode },

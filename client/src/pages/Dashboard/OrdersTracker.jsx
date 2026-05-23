@@ -131,10 +131,6 @@ export default function OrdersTracker() {
   const pendingPaymentOrders = orders.filter(o => o.status === 'Completed' && o.payment_status !== 'Paid');
   const settledOrders = orders.filter(o => (o.status === 'Completed' && o.payment_status === 'Paid') || o.status === 'Cancelled');
 
-  const displayedOrders = profile.flow_mode === 'Simple'
-    ? orders
-    : (activeTab === 'pending_payment' ? pendingPaymentOrders : settledOrders);
-
   const isToday = (iso) => {
     if (!iso) return false;
     const d = new Date(iso);
@@ -156,31 +152,29 @@ export default function OrdersTracker() {
         </div>
 
         {/* Tab Selection */}
-        {profile.flow_mode !== 'Simple' && (
-          <div className="tab-buttons-container">
-            <button 
-              className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
-              onClick={() => setActiveTab('active')}
-            >
-              <span>Active Queue</span>
-              <span className="count">{activeOrders.length}</span>
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'pending_payment' ? 'active' : ''}`}
-              onClick={() => setActiveTab('pending_payment')}
-            >
-              <span>Payment Pending 💳</span>
-              <span className="count">{pendingPaymentOrders.length}</span>
-            </button>
-            <button 
-              className={`tab-btn ${activeTab === 'settled' ? 'active' : ''}`}
-              onClick={() => setActiveTab('settled')}
-            >
-              <span>Settled History 📜</span>
-              <span className="count">{settledOrders.length}</span>
-            </button>
-          </div>
-        )}
+        <div className="tab-buttons-container">
+          <button 
+            className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
+            onClick={() => setActiveTab('active')}
+          >
+            <span>Active Queue</span>
+            <span className="count">{activeOrders.length}</span>
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'pending_payment' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pending_payment')}
+          >
+            <span>Payment Pending 💳</span>
+            <span className="count">{pendingPaymentOrders.length}</span>
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'settled' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settled')}
+          >
+            <span>Settled History 📜</span>
+            <span className="count">{settledOrders.length}</span>
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -196,7 +190,7 @@ export default function OrdersTracker() {
         </div>
       ) : (
         <>
-          {(activeTab === 'active' && profile.flow_mode !== 'Simple') ? (
+          {activeTab === 'active' ? (
             /* Kanban Kitchen columns */
             <div className="orders-board">
               
@@ -364,8 +358,8 @@ export default function OrdersTracker() {
               </div>
 
               <div className="glass history-log animated" style={{ marginTop: '16px' }}>
-                <h3>{profile.flow_mode === 'Simple' ? 'Order Log' : (activeTab === 'pending_payment' ? 'Payment Pending Queue' : 'Settled Order History')}</h3>
-                {(displayedOrders.length === 0) ? (
+                <h3>{activeTab === 'pending_payment' ? 'Payment Pending Queue' : 'Settled Order History'}</h3>
+                {((activeTab === 'pending_payment' ? pendingPaymentOrders : settledOrders).length === 0) ? (
                   <div className="empty-state">
                     <ShoppingBag size={36} />
                     <p>No orders in this status.</p>
@@ -385,7 +379,7 @@ export default function OrdersTracker() {
                         </tr>
                       </thead>
                       <tbody>
-                        {displayedOrders.map((order) => {
+                        {(activeTab === 'pending_payment' ? pendingPaymentOrders : settledOrders).map((order) => {
                           const isExpanded = expandedOrderId === order.id;
                           return (
                             <>

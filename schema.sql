@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   cover_image TEXT DEFAULT '',
   established_year TEXT DEFAULT '2026',
   tagline TEXT DEFAULT 'Premium Dining Experience',
-  flow_mode TEXT DEFAULT 'KDS',
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
