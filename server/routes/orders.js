@@ -53,7 +53,9 @@ router.post('/', async (req, res) => {
           table_number: tableNumber,
           items: items, // JSONB structure
           total_price: parseFloat(totalPrice),
-          status: 'Pending'
+          status: 'Pending',
+          payment_status: 'Unpaid',
+          payment_method: null
         }
       ])
       .select()
@@ -112,6 +114,64 @@ router.put('/:id/status', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Update order status error:', err);
     res.status(500).json({ error: 'Failed to update order status' });
+  }
+});
+
+// @route   PUT /api/orders/:id/payment
+// @desc    Update order payment status and method
+// @access  Private
+router.put('/:id/payment', requireAuth, async (req, res) => {
+  const orderId = req.params.id;
+  const { paymentStatus, paymentMethod } = req.body;
+
+  if (!paymentStatus) {
+    return res.status(400).json({ error: 'paymentStatus is required' });
+  }
+
+  const validStatuses = ['Unpaid', 'Paid'];
+  if (!validStatuses.includes(paymentStatus)) {
+    return res.status(400).json({ error: 'Invalid paymentStatus' });
+  }
+
+  const validMethods = ['Cash', 'UPI', 'Card', null];
+  if (paymentMethod !== undefined && !validMethods.includes(paymentMethod)) {
+    return res.status(400).json({ error: 'Invalid paymentMethod' });
+  }
+
+  try {
+    // 1. Verify ownership of order
+    const { data: order, error: checkError } = await supabase
+      .from('orders')
+      .select('restaurant_id')
+      .eq('id', orderId)
+      .single();
+
+    if (checkError || !order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (order.restaurant_id !== req.user.id) {
+      return res.status(403).json({ error: 'Unauthorized to modify this order' });
+    }
+
+    // 2. Update payment details
+    const updatePayload = {
+      payment_status: paymentStatus,
+      payment_method: paymentStatus === 'Paid' ? paymentMethod : null
+    };
+
+    const { data: updatedOrder, error: updateError } = await supabase
+      .from('orders')
+      .update(updatePayload)
+      .eq('id', orderId)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+    res.json(updatedOrder);
+  } catch (err) {
+    console.error('Update order payment error:', err);
+    res.status(500).json({ error: 'Failed to update order payment' });
   }
 });
 

@@ -8,7 +8,8 @@ import {
   Play, 
   AlertCircle,
   Inbox,
-  ChevronDown
+  ChevronDown,
+  CheckCircle2
 } from 'lucide-react';
 
 export default function OrdersTracker() {
@@ -87,6 +88,19 @@ export default function OrdersTracker() {
     }
   };
 
+  const updatePayment = async (orderId, paymentStatus, paymentMethod) => {
+    try {
+      const updated = await api.put(`/orders/${orderId}/payment`, { paymentStatus, paymentMethod });
+      setOrders(orders.map(o => o.id === orderId ? { 
+        ...o, 
+        payment_status: updated.payment_status, 
+        payment_method: updated.payment_method 
+      } : o));
+    } catch (err) {
+      alert('Failed to update payment: ' + err.message);
+    }
+  };
+
   const formatTime = (isoString) => {
     const date = new Date(isoString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -95,7 +109,21 @@ export default function OrdersTracker() {
   // Filter orders
   const pendingOrders = orders.filter(o => o.status === 'Pending');
   const preparingOrders = orders.filter(o => o.status === 'Preparing');
-  const historyOrders = orders.filter(o => o.status === 'Completed' || o.status === 'Cancelled');
+  
+  const activeOrders = orders.filter(o => o.status === 'Pending' || o.status === 'Preparing');
+  const pendingPaymentOrders = orders.filter(o => o.status === 'Completed' && o.payment_status !== 'Paid');
+  const settledOrders = orders.filter(o => (o.status === 'Completed' && o.payment_status === 'Paid') || o.status === 'Cancelled');
+
+  const isToday = (iso) => {
+    const d = new Date(iso);
+    const t = new Date();
+    return d.getDate() === t.getDate() && d.getMonth() === t.getMonth() && d.getFullYear() === t.getFullYear();
+  };
+  const todayOrders = orders.filter(o => isToday(o.created_at));
+  const todayPaidOrders = todayOrders.filter(o => o.payment_status === 'Paid');
+  const todayCash = todayPaidOrders.filter(o => o.payment_method === 'Cash').reduce((sum, o) => sum + (o.total_price || 0), 0);
+  const todayUPI = todayPaidOrders.filter(o => o.payment_method === 'UPI').reduce((sum, o) => sum + (o.total_price || 0), 0);
+  const todayCard = todayPaidOrders.filter(o => o.payment_method === 'Card').reduce((sum, o) => sum + (o.total_price || 0), 0);
 
   return (
     <div className="orders-tracker-wrapper animated">
@@ -111,15 +139,22 @@ export default function OrdersTracker() {
             className={`tab-btn ${activeTab === 'active' ? 'active' : ''}`}
             onClick={() => setActiveTab('active')}
           >
-            <span>Active Orders</span>
-            <span className="count">{pendingOrders.length + preparingOrders.length}</span>
+            <span>Active Queue</span>
+            <span className="count">{activeOrders.length}</span>
           </button>
           <button 
-            className={`tab-btn ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveTab('history')}
+            className={`tab-btn ${activeTab === 'pending_payment' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pending_payment')}
           >
-            <span>History</span>
-            <span className="count">{historyOrders.length}</span>
+            <span>Payment Pending 💳</span>
+            <span className="count">{pendingPaymentOrders.length}</span>
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'settled' ? 'active' : ''}`}
+            onClick={() => setActiveTab('settled')}
+          >
+            <span>Settled History 📜</span>
+            <span className="count">{settledOrders.length}</span>
           </button>
         </div>
       </div>
@@ -256,100 +291,179 @@ export default function OrdersTracker() {
 
             </div>
           ) : (
-            /* History Tab list */
-            <div className="glass history-log animated">
-              <h3>Order History</h3>
-              {historyOrders.length === 0 ? (
-                <div className="empty-state">
-                  <ShoppingBag size={36} />
-                  <p>No historical orders recorded yet.</p>
+            /* Billing and History Tabs */
+            <div className="orders-tracker-billing-container animated">
+              {/* Payment Summary Box (End-of-Day) */}
+              <div className="kds-payment-report glass">
+                <div className="report-title">
+                  <CheckCircle2 size={16} className="text-success" />
+                  <span>Today's Payment Summary (End-of-Day Report)</span>
                 </div>
-              ) : (
-                <div className="history-table-wrapper">
-                  <table className="history-table">
-                    <thead>
-                      <tr>
-                        <th>Time</th>
-                        <th>Table</th>
-                        <th>Dishes</th>
-                        <th>Price</th>
-                        <th>Status</th>
-                        <th style={{ width: '48px' }}></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {historyOrders.map((order) => {
-                        const isExpanded = expandedOrderId === order.id;
-                        return (
-                          <>
-                            <tr
-                              key={order.id}
-                              className={`history-row ${isExpanded ? 'row-expanded' : ''}`}
-                              onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
-                            >
-                              <td>{new Date(order.created_at).toLocaleString()}</td>
-                              <td>Table {order.table_number}</td>
-                              <td className="dishes-cell">
-                                {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
-                              </td>
-                              <td className="price-cell">{profile.currency || '₹'}{order.total_price}</td>
-                              <td>
-                                <span className={`badge ${order.status === 'Completed' ? 'badge-success' : 'badge-danger'}`}>
-                                  {order.status}
-                                </span>
-                              </td>
-                              <td className="expand-cell">
-                                <button
-                                  className={`expand-btn ${isExpanded ? 'expanded' : ''}`}
-                                  onClick={(e) => { e.stopPropagation(); setExpandedOrderId(isExpanded ? null : order.id); }}
-                                  title={isExpanded ? 'Collapse' : 'View full order'}
-                                >
-                                  <ChevronDown size={16} />
-                                </button>
-                              </td>
-                            </tr>
+                <div className="report-breakdown">
+                  <div className="breakdown-item">
+                    <span className="breakdown-label">UPI</span>
+                    <span className="breakdown-val text-primary">{profile.currency || '₹'}{todayUPI.toLocaleString()}</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span className="breakdown-label">Cash</span>
+                    <span className="breakdown-val text-success">{profile.currency || '₹'}{todayCash.toLocaleString()}</span>
+                  </div>
+                  <div className="breakdown-item">
+                    <span className="breakdown-label">Card</span>
+                    <span className="breakdown-val text-warning">{profile.currency || '₹'}{todayCard.toLocaleString()}</span>
+                  </div>
+                  <div className="breakdown-item total">
+                    <span className="breakdown-label">Total Settled</span>
+                    <span className="breakdown-val">{profile.currency || '₹'}{(todayUPI + todayCash + todayCard).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
 
-                            {isExpanded && (
-                              <tr key={`${order.id}-detail`} className="detail-row animated">
-                                <td colSpan={6} className="detail-cell">
-                                  <div className="order-detail-panel">
-                                    <div className="detail-panel-header">
-                                      <span>📋 Full Order — Table {order.table_number}</span>
-                                      <span className="detail-time">{new Date(order.created_at).toLocaleString()}</span>
-                                    </div>
-
-                                    <div className="detail-items-list">
-                                      <div className="detail-items-head">
-                                        <span>Item</span>
-                                        <span>Qty</span>
-                                        <span>Unit Price</span>
-                                        <span>Subtotal</span>
-                                      </div>
-                                      {order.items.map((item, idx) => (
-                                        <div key={idx} className="detail-item-row">
-                                          <span className="di-name">{item.name}</span>
-                                          <span className="di-qty">{item.quantity}</span>
-                                          <span className="di-unit">{profile.currency || '₹'}{item.price}</span>
-                                          <span className="di-sub">{profile.currency || '₹'}{item.price * item.quantity}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-
-                                    <div className="detail-total-row">
-                                      <span>Grand Total</span>
-                                      <span className="detail-total-val">{profile.currency || '₹'}{order.total_price}</span>
-                                    </div>
-                                  </div>
+              <div className="glass history-log animated" style={{ marginTop: '16px' }}>
+                <h3>{activeTab === 'pending_payment' ? 'Payment Pending Queue' : 'Settled Order History'}</h3>
+                {((activeTab === 'pending_payment' ? pendingPaymentOrders : settledOrders).length === 0) ? (
+                  <div className="empty-state">
+                    <ShoppingBag size={36} />
+                    <p>No orders in this status.</p>
+                  </div>
+                ) : (
+                  <div className="history-table-wrapper">
+                    <table className="history-table">
+                      <thead>
+                        <tr>
+                          <th>Time</th>
+                          <th>Table</th>
+                          <th>Dishes</th>
+                          <th>Price</th>
+                          <th>Payment</th>
+                          <th>Status</th>
+                          <th style={{ width: '48px' }}></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(activeTab === 'pending_payment' ? pendingPaymentOrders : settledOrders).map((order) => {
+                          const isExpanded = expandedOrderId === order.id;
+                          return (
+                            <>
+                              <tr
+                                key={order.id}
+                                className={`history-row ${isExpanded ? 'row-expanded' : ''}`}
+                                onClick={() => setExpandedOrderId(isExpanded ? null : order.id)}
+                              >
+                                <td>{new Date(order.created_at).toLocaleString()}</td>
+                                <td>Table {order.table_number}</td>
+                                <td className="dishes-cell">
+                                  {order.items.map(item => `${item.quantity}x ${item.name}`).join(', ')}
+                                </td>
+                                <td className="price-cell">{profile.currency || '₹'}{order.total_price}</td>
+                                <td>
+                                  {order.payment_status === 'Paid' ? (
+                                    <span className={`payment-badge paid paid-${order.payment_method?.toLowerCase()}`}>
+                                      {order.payment_method}
+                                    </span>
+                                  ) : (
+                                    <span className="payment-badge unpaid">
+                                      Unpaid
+                                    </span>
+                                  )}
+                                </td>
+                                <td>
+                                  <span className={`badge ${order.status === 'Completed' ? 'badge-success' : 'badge-danger'}`}>
+                                    {order.status}
+                                  </span>
+                                </td>
+                                <td className="expand-cell">
+                                  <button
+                                    className={`expand-btn ${isExpanded ? 'expanded' : ''}`}
+                                    onClick={(e) => { e.stopPropagation(); setExpandedOrderId(isExpanded ? null : order.id); }}
+                                    title={isExpanded ? 'Collapse' : 'View full order'}
+                                  >
+                                    <ChevronDown size={16} />
+                                  </button>
                                 </td>
                               </tr>
-                            )}
-                          </>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+
+                              {isExpanded && (
+                                <tr key={`${order.id}-detail`} className="detail-row animated">
+                                  <td colSpan={7} className="detail-cell">
+                                    <div className="order-detail-panel">
+                                      <div className="detail-panel-header">
+                                        <span>📋 Full Order — Table {order.table_number}</span>
+                                        <span className="detail-time">{new Date(order.created_at).toLocaleString()}</span>
+                                      </div>
+
+                                      <div className="detail-items-list">
+                                        <div className="detail-items-head">
+                                          <span>Item</span>
+                                          <span>Qty</span>
+                                          <span>Unit Price</span>
+                                          <span>Subtotal</span>
+                                        </div>
+                                        {order.items.map((item, idx) => (
+                                          <div key={idx} className="detail-item-row">
+                                            <span className="di-name">{item.name}</span>
+                                            <span className="di-qty">{item.quantity}</span>
+                                            <span className="di-unit">{profile.currency || '₹'}{item.price}</span>
+                                            <span className="di-sub">{profile.currency || '₹'}{item.price * item.quantity}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+
+                                      <div className="detail-total-row">
+                                        <span>Grand Total</span>
+                                        <span className="detail-total-val">{profile.currency || '₹'}{order.total_price}</span>
+                                      </div>
+
+                                      {/* Payment selector in details drawer */}
+                                      <div className="card-payment-tracker" onClick={e => e.stopPropagation()} style={{ padding: '16px 20px' }}>
+                                        {order.payment_status === 'Paid' ? (
+                                          <div className="payment-settled-info">
+                                            <span className="settled-text">✔ Paid via <strong>{order.payment_method}</strong></span>
+                                            <button
+                                              className="btn-pay-reset"
+                                              onClick={() => updatePayment(order.id, 'Unpaid', null)}
+                                            >
+                                              Reset
+                                            </button>
+                                          </div>
+                                        ) : (
+                                          <div className="payment-options-prompt">
+                                            <span className="prompt-text">Settle Payment:</span>
+                                            <div className="payment-option-buttons">
+                                              <button
+                                                className="btn-pay-method pay-cash"
+                                                onClick={() => updatePayment(order.id, 'Paid', 'Cash')}
+                                              >
+                                                💵 Cash
+                                              </button>
+                                              <button
+                                                className="btn-pay-method pay-upi"
+                                                onClick={() => updatePayment(order.id, 'Paid', 'UPI')}
+                                              >
+                                                📱 UPI
+                                              </button>
+                                              <button
+                                                className="btn-pay-method pay-card"
+                                                onClick={() => updatePayment(order.id, 'Paid', 'Card')}
+                                              >
+                                                💳 Card
+                                              </button>
+                                            </div>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </>
@@ -736,6 +850,183 @@ export default function OrdersTracker() {
           font-size: 18px;
           font-weight: 800;
           color: var(--primary);
+        }
+
+        /* ─── End-of-Day Payment Report ─── */
+        .kds-payment-report {
+          padding: 16px 20px;
+          border-radius: var(--radius-lg);
+          background: var(--bg-card-dark-trans);
+          border: 1px solid var(--border-dark);
+          backdrop-filter: blur(10px);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          margin-bottom: 8px;
+        }
+        .report-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-dark-secondary);
+        }
+        .report-breakdown {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+        }
+        .breakdown-item {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          padding: 8px 12px;
+          background: rgba(255,255,255,0.01);
+          border: 1px solid rgba(255,255,255,0.02);
+          border-radius: var(--radius-md);
+        }
+        .breakdown-item.total {
+          background: rgba(142, 252, 172, 0.03);
+          border-color: rgba(142, 252, 172, 0.1);
+        }
+        .breakdown-label {
+          font-size: 11px;
+          color: var(--text-dark-muted);
+          font-weight: 600;
+        }
+        .breakdown-val {
+          font-family: var(--font-brand);
+          font-size: 18px;
+          font-weight: 800;
+        }
+        .breakdown-item.total .breakdown-val {
+          color: var(--success);
+        }
+        @media (max-width: 768px) {
+          .report-breakdown {
+            grid-template-columns: 1fr 1fr;
+          }
+        }
+
+        /* ─── Payment Badges ─── */
+        .payment-badge {
+          font-size: 10px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: var(--radius-full);
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+        }
+        .payment-badge.paid {
+          background: hsla(142, 72%, 40%, 0.15);
+          color: var(--success);
+          border: 1px solid hsla(142, 72%, 40%, 0.3);
+        }
+        .payment-badge.unpaid {
+          background: rgba(255,255,255,0.05);
+          color: var(--text-dark-muted);
+          border: 1px solid var(--border-dark);
+        }
+        .payment-badge.paid-upi {
+          background: hsla(200, 85%, 48%, 0.15);
+          color: var(--info);
+          border-color: hsla(200, 85%, 48%, 0.3);
+        }
+        .payment-badge.paid-cash {
+          background: hsla(142, 72%, 40%, 0.15);
+          color: var(--success);
+          border-color: hsla(142, 72%, 40%, 0.3);
+        }
+        .payment-badge.paid-card {
+          background: hsla(38, 92%, 50%, 0.15);
+          color: var(--warning);
+          border-color: hsla(38, 92%, 50%, 0.3);
+        }
+
+        /* ─── Expanded Payment Actions ─── */
+        .card-payment-tracker {
+          margin-top: 12px;
+          padding-top: 12px;
+          border-top: 1px solid var(--border-dark);
+        }
+        .payment-settled-info {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 13px;
+          color: var(--text-dark-secondary);
+        }
+        .settled-text strong {
+          color: var(--text-dark-primary);
+        }
+        .btn-pay-reset {
+          background: none;
+          border: none;
+          color: var(--danger);
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          padding: 2px 6px;
+          border-radius: var(--radius-sm);
+          transition: background 0.2s;
+        }
+        .btn-pay-reset:hover {
+          background: rgba(255, 70, 70, 0.1);
+        }
+        .payment-options-prompt {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        .prompt-text {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-dark-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+        .payment-option-buttons {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 8px;
+        }
+        .btn-pay-method {
+          padding: 8px 12px;
+          border: 1px solid var(--border-dark);
+          border-radius: var(--radius-md);
+          background: rgba(255,255,255,0.03);
+          color: var(--text-dark-secondary);
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+        }
+        .btn-pay-method:hover {
+          background: rgba(255,255,255,0.08);
+          color: var(--text-dark-primary);
+          border-color: rgba(255,255,255,0.15);
+        }
+        .btn-pay-method.pay-cash:hover {
+          background: hsla(142, 72%, 40%, 0.15);
+          color: var(--success);
+          border-color: hsla(142, 72%, 40%, 0.3);
+        }
+        .btn-pay-method.pay-upi:hover {
+          background: hsla(200, 85%, 48%, 0.15);
+          color: var(--info);
+          border-color: hsla(200, 85%, 48%, 0.3);
+        }
+        .btn-pay-method.pay-card:hover {
+          background: hsla(38, 92%, 50%, 0.15);
+          color: var(--warning);
+          border-color: hsla(38, 92%, 50%, 0.3);
         }
       `}</style>
     </div>
