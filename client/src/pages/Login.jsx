@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
-import { Sparkles, Phone, Mail, Lock, AlertCircle, CheckCircle2, Loader, ArrowLeft, KeyRound } from 'lucide-react';
+import { Sparkles, Phone, Mail, Lock, AlertCircle, CheckCircle2, Loader, ArrowLeft, KeyRound, Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -11,6 +11,9 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Forgot password states
   const [resetEmail, setResetEmail] = useState('');
@@ -301,16 +304,25 @@ export default function Login() {
                   Forgot Password?
                 </button>
               </div>
-              <div className="input-with-icon">
+              <div className="input-with-icon" style={{ position: 'relative' }}>
                 <Lock className="input-icon" size={18} />
                 <input 
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   className="form-control"
                   placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  style={{ paddingRight: '44px' }}
                 />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
@@ -402,18 +414,27 @@ export default function Login() {
               </div>
             </div>
 
-            <div className="form-group">
+             <div className="form-group">
               <label className="form-label">New Password</label>
-              <div className="input-with-icon">
+              <div className="input-with-icon" style={{ position: 'relative' }}>
                 <Lock className="input-icon" size={18} />
                 <input 
-                  type="password"
+                  type={showNewPassword ? "text" : "password"}
                   className="form-control"
                   placeholder="e.g. abcd@123"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   required
+                  style={{ paddingRight: '44px' }}
                 />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  aria-label={showNewPassword ? "Hide password" : "Show password"}
+                >
+                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
               <span className="input-hint" style={{ fontSize: '11px', color: 'var(--text-dark-muted)', marginTop: '4px', display: 'block' }}>
                 At least 8 chars: 4 letters, followed by 1 special char, and ending with at least 3 numbers (e.g. abcd@123).
@@ -422,16 +443,25 @@ export default function Login() {
 
             <div className="form-group">
               <label className="form-label">Confirm New Password</label>
-              <div className="input-with-icon">
+              <div className="input-with-icon" style={{ position: 'relative' }}>
                 <Lock className="input-icon" size={18} />
                 <input 
-                  type="password"
+                  type={showConfirmPassword ? "text" : "password"}
                   className="form-control"
                   placeholder="Repeat new password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
+                  style={{ paddingRight: '44px' }}
                 />
+                <button
+                  type="button"
+                  className="password-toggle-btn"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                >
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
 
@@ -684,6 +714,24 @@ export default function Login() {
         }
         .back-btn:hover {
           color: var(--text-dark-primary);
+        }
+        .password-toggle-btn {
+          position: absolute;
+          right: 14px;
+          background: none;
+          border: none;
+          color: var(--text-dark-muted);
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
+          transition: color 0.2s, transform 0.2s;
+          z-index: 10;
+        }
+        .password-toggle-btn:hover {
+          color: var(--text-dark-primary);
+          transform: scale(1.05);
         }
       `}</style>
     </div>
