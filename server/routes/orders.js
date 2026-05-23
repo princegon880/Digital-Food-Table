@@ -157,8 +157,7 @@ router.put('/:id/payment', requireAuth, async (req, res) => {
     // 2. Update payment details
     const updatePayload = {
       payment_status: paymentStatus,
-      payment_method: paymentStatus === 'Paid' ? paymentMethod : null,
-      paid_at: paymentStatus === 'Paid' ? new Date().toISOString() : null
+      payment_method: paymentStatus === 'Paid' ? paymentMethod : null
     };
 
     const { data: updatedOrder, error: updateError } = await supabase

@@ -219,8 +219,7 @@ export default function LiveDashboard() {
       setOrders(prev => prev.map(o => o.id === orderId ? { 
         ...o, 
         payment_status: updated.payment_status, 
-        payment_method: updated.payment_method,
-        paid_at: updated.paid_at
+        payment_method: updated.payment_method
       } : o));
     } catch (err) {
       alert('Failed to update payment: ' + err.message);
@@ -242,7 +241,7 @@ export default function LiveDashboard() {
     .filter(o => o.status !== 'Cancelled')
     .reduce((sum, o) => sum + Number(o.total_price || 0), 0);
 
-  const todayPaidOrders = orders.filter(o => o.payment_status === 'Paid' && (isToday(o.paid_at) || isToday(o.created_at)));
+  const todayPaidOrders = todayOrders.filter(o => o.payment_status === 'Paid');
   const todayCash = todayPaidOrders.filter(o => o.payment_method === 'Cash').reduce((sum, o) => sum + Number(o.total_price || 0), 0);
   const todayUPI = todayPaidOrders.filter(o => o.payment_method === 'UPI').reduce((sum, o) => sum + Number(o.total_price || 0), 0);
   const todayCard = todayPaidOrders.filter(o => o.payment_method === 'Card').reduce((sum, o) => sum + Number(o.total_price || 0), 0);
