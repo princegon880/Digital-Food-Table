@@ -121,9 +121,9 @@ export default function OrdersTracker() {
   };
   const todayOrders = orders.filter(o => isToday(o.created_at));
   const todayPaidOrders = todayOrders.filter(o => o.payment_status === 'Paid');
-  const todayCash = todayPaidOrders.filter(o => o.payment_method === 'Cash').reduce((sum, o) => sum + (o.total_price || 0), 0);
-  const todayUPI = todayPaidOrders.filter(o => o.payment_method === 'UPI').reduce((sum, o) => sum + (o.total_price || 0), 0);
-  const todayCard = todayPaidOrders.filter(o => o.payment_method === 'Card').reduce((sum, o) => sum + (o.total_price || 0), 0);
+  const todayCash = todayPaidOrders.filter(o => o.payment_method === 'Cash').reduce((sum, o) => sum + Number(o.total_price || 0), 0);
+  const todayUPI = todayPaidOrders.filter(o => o.payment_method === 'UPI').reduce((sum, o) => sum + Number(o.total_price || 0), 0);
+  const todayCard = todayPaidOrders.filter(o => o.payment_method === 'Card').reduce((sum, o) => sum + Number(o.total_price || 0), 0);
 
   return (
     <div className="orders-tracker-wrapper animated">
