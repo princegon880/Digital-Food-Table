@@ -44,7 +44,53 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Restaurant not found' });
     }
 
-    // 2. Insert order
+    // 2. Check if there is an existing active unpaid order for this table
+    const { data: existingOrders, error: findError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('restaurant_id', restaurant.id)
+      .eq('table_number', tableNumber.toString().trim())
+      .eq('payment_status', 'Unpaid');
+
+    if (findError) {
+      console.error('Error finding existing orders:', findError);
+    }
+
+    const activeOrders = (existingOrders || []).filter(o => o.status !== 'Cancelled');
+
+    if (activeOrders.length > 0) {
+      // Use the first active unpaid order to merge
+      const activeOrder = activeOrders[0];
+
+      // Merge items list
+      const mergedItems = [...activeOrder.items];
+      items.forEach(newItem => {
+        const existingItem = mergedItems.find(i => (i.id && i.id === newItem.id) || i.name === newItem.name);
+        if (existingItem) {
+          existingItem.quantity = Number(existingItem.quantity) + Number(newItem.quantity);
+        } else {
+          mergedItems.push(newItem);
+        }
+      });
+
+      const newTotalPrice = parseFloat(activeOrder.total_price) + parseFloat(totalPrice);
+
+      const { data: updatedOrder, error: updateError } = await supabase
+        .from('orders')
+        .update({
+          items: mergedItems,
+          total_price: newTotalPrice,
+          status: 'Pending' // Reset status to Pending so kitchen knows new items are added
+        })
+        .eq('id', activeOrder.id)
+        .select()
+        .single();
+
+      if (updateError) throw updateError;
+      return res.status(200).json(updatedOrder);
+    }
+
+    // 3. Otherwise, insert a new order
     const { data: newOrder, error: orderError } = await supabase
       .from('orders')
       .insert([
