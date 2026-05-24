@@ -123,7 +123,7 @@ router.post('/sync-profile', requireAuth, async (req, res) => {
 });
 
 // @route   GET /api/auth/me
-// @desc    Get current user details
+// @desc    Get current user details (with self-healing fallback)
 // @access  Private
 router.get('/me', requireAuth, async (req, res) => {
   try {
@@ -131,18 +131,54 @@ router.get('/me', requireAuth, async (req, res) => {
       .from('profiles')
       .select('*')
       .eq('id', req.user.id)
-      .single();
+      .maybeSingle();
 
     if (dbError) {
-      return res.status(404).json({ error: 'Profile not found' });
+      console.error('Database fetch profile error:', dbError);
+      return res.status(500).json({ error: 'Database error fetching profile' });
+    }
+
+    if (profileData) {
+      return res.json({
+        user: {
+          id: req.user.id,
+          email: req.user.email || profileData.email
+        },
+        profile: profileData
+      });
+    }
+
+    // Self-healing: if authenticated but profile doesn't exist, create a default one
+    console.log(`Profile not found for Clerk ID ${req.user.id}. Auto-creating default profile...`);
+    const shortId = req.user.id.substring(req.user.id.length - 6);
+    const baseSlug = `restaurant-${shortId}`;
+    const slug = await generateUniqueSlug(baseSlug);
+
+    const { data: newProfile, error: dbCreateError } = await supabase
+      .from('profiles')
+      .insert([
+        {
+          id: req.user.id,
+          restaurant_name: 'My Restaurant',
+          slug: slug,
+          phone_number: '0000000000',
+          email: ''
+        }
+      ])
+      .select()
+      .single();
+
+    if (dbCreateError) {
+      console.error('Database auto-create profile error:', dbCreateError);
+      return res.status(500).json({ error: 'Failed to initialize default profile' });
     }
 
     res.json({
       user: {
         id: req.user.id,
-        email: req.user.email || profileData.email
+        email: newProfile.email
       },
-      profile: profileData
+      profile: newProfile
     });
   } catch (err) {
     console.error('Fetch me error:', err);
