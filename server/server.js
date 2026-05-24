@@ -74,23 +74,16 @@ app.get('/api/test-db', async (req, res) => {
     const start = Date.now();
     
     // Test profiles table
-    const { data: profiles, error: profileError } = await supabase.from('profiles').select('*').limit(20);
-    diagnostics.profiles_test = profileError ? { success: false, error: profileError } : { success: true, count: profiles.length, samples: profiles };
+    const { data: profiles, error: profileError } = await supabase.from('profiles').select('id').limit(1);
+    diagnostics.profiles_test = profileError ? { success: false, error: profileError } : { success: true, count: profiles.length };
 
     // Test categories table
-    const { data: categories, error: categoryError } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('restaurant_id', 'user_test_clerk_id')
-      .order('order', { ascending: true });
-    diagnostics.categories_test = categoryError ? { success: false, error: categoryError } : { success: true, count: categories.length, sample: categories[0] };
+    const { data: categories, error: categoryError } = await supabase.from('categories').select('id').limit(1);
+    diagnostics.categories_test = categoryError ? { success: false, error: categoryError } : { success: true, count: categories.length };
 
     // Test menu_items table
-    const { data: menuItems, error: menuItemsError } = await supabase
-      .from('menu_items')
-      .select('*, categories(*)')
-      .eq('restaurant_id', 'user_test_clerk_id');
-    diagnostics.menu_items_test = menuItemsError ? { success: false, error: menuItemsError } : { success: true, count: menuItems.length, sample: menuItems[0] };
+    const { data: menuItems, error: menuItemsError } = await supabase.from('menu_items').select('id').limit(1);
+    diagnostics.menu_items_test = menuItemsError ? { success: false, error: menuItemsError } : { success: true, count: menuItems.length };
     
     diagnostics.query_time_ms = Date.now() - start;
     diagnostics.query_success = !profileError && !categoryError && !menuItemsError;
