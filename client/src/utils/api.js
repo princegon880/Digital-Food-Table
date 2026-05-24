@@ -106,9 +106,22 @@ export const api = {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('profile');
+        
+        const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+        if (isClerkEnabled && window.Clerk) {
+          window.Clerk.signOut()
+            .catch(err => console.error('Failed to sign out of Clerk on 401:', err))
+            .finally(() => {
+              if (!window.location.pathname.startsWith('/menu')) {
+                window.location.href = '/login?error=session_expired';
+              }
+            });
+          // Suspend the flow to let the page redirect without console errors
+          return new Promise(() => {});
+        }
+
         if (!window.location.pathname.startsWith('/menu')) {
-          // Redirect dashboard users to login, but keep customers on menu
-          window.location.href = '/login';
+          window.location.href = '/login?error=session_expired';
         }
       }
       throw new Error(data.error || 'API Request Failed');

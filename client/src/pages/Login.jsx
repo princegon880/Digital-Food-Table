@@ -38,6 +38,16 @@ function ClerkLogin() {
     }
   }, [authLoaded, isSignedIn, navigate]);
 
+  // Parse error query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    if (err === 'session_expired') {
+      setError('Your session has expired or the server rejected the authentication token. Please log in again.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Timer effect for OTP resend countdown
   useEffect(() => {
     let interval = null;
@@ -349,6 +359,16 @@ function LocalLogin() {
       navigate('/dashboard');
     }
   }, [navigate]);
+
+  // Parse error query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get('error');
+    if (err === 'session_expired') {
+      setError('Your session has expired or is invalid. Please log in again.');
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   // Timer effect for OTP resend countdown
   useEffect(() => {
