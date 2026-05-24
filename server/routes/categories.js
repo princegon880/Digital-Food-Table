@@ -18,7 +18,7 @@ router.get('/', requireAuth, async (req, res) => {
     res.json(categories);
   } catch (err) {
     console.error('Fetch categories error:', err);
-    res.status(500).json({ error: 'Failed to fetch categories' });
+    res.status(500).json({ error: 'Failed to fetch categories', details: err.message || err });
   }
 });
 
