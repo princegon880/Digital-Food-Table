@@ -64,6 +64,27 @@ router.post('/sync-profile', requireAuth, async (req, res) => {
 
     if (getError) throw getError;
     if (existingProfile) {
+      // If it exists but is a default placeholder profile, update it with the actual registration details!
+      if (existingProfile.restaurant_name === 'My Restaurant' || existingProfile.phone_number === '0000000000') {
+        console.log(`Race condition detected for Clerk ID ${req.user.id}. Updating default profile with real registration details...`);
+        const { data: updatedProfile, error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            restaurant_name: restaurantName,
+            phone_number: cleanPhone,
+            email: cleanEmail
+          })
+          .eq('id', req.user.id)
+          .select()
+          .single();
+
+        if (!updateError && updatedProfile) {
+          return res.status(200).json({
+            message: 'Profile updated with signup details',
+            profile: updatedProfile
+          });
+        }
+      }
       return res.status(200).json({
         message: 'Profile already synced',
         profile: existingProfile
