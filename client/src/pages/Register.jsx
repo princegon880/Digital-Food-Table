@@ -28,10 +28,10 @@ function ClerkRegister() {
 
   // Auto-redirect if already logged in and not in the process of signing up
   useEffect(() => {
-    if (authLoaded && isSignedIn && !isSigningUp) {
+    if (authLoaded && isSignedIn && !isSigningUp && !error) {
       navigate('/dashboard');
     }
-  }, [authLoaded, isSignedIn, isSigningUp, navigate]);
+  }, [authLoaded, isSignedIn, isSigningUp, error, navigate]);
 
   // Timer effect for OTP resend countdown
   useEffect(() => {
