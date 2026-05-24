@@ -16,17 +16,35 @@ export const setTokenResolver = (resolver) => {
 
 const getHeaders = async () => {
   let token = null;
-  try {
-    if (tokenResolver) {
-      token = await tokenResolver();
+  let source = 'none';
+
+  // 1. Try global Clerk session directly to avoid hook resolver race conditions
+  if (window.Clerk?.session) {
+    try {
+      token = await window.Clerk.session.getToken();
+      if (token) source = 'window.Clerk';
+    } catch (err) {
+      console.warn('Failed to resolve token from window.Clerk:', err);
     }
-  } catch (err) {
-    console.error('Failed to resolve token from Clerk:', err);
   }
-  
+
+  // 2. Try hook-based token resolver fallback
+  if (!token && tokenResolver) {
+    try {
+      token = await tokenResolver();
+      if (token) source = 'tokenResolver';
+    } catch (err) {
+      console.warn('Failed to resolve token from tokenResolver:', err);
+    }
+  }
+
+  // 3. Try localStorage fallback for offline testing
   if (!token) {
     token = localStorage.getItem('token');
+    if (token) source = 'localStorage';
   }
+
+  console.log(`[API getHeaders] Resolved token from source: "${source}"`);
 
   const headers = {
     'Content-Type': 'application/json'
