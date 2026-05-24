@@ -1,11 +1,6 @@
-const { createClerkClient } = require('@clerk/backend');
+const { verifyToken } = require('@clerk/backend');
 
 const clerkSecretKey = process.env.CLERK_SECRET_KEY;
-let clerkClient = null;
-
-if (clerkSecretKey) {
-  clerkClient = createClerkClient({ secretKey: clerkSecretKey });
-}
 
 const requireAuth = async (req, res, next) => {
   try {
@@ -26,20 +21,23 @@ const requireAuth = async (req, res, next) => {
       return next();
     }
 
-    if (!clerkClient) {
-      return res.status(500).json({ error: 'Clerk is not configured on the server' });
+    if (!clerkSecretKey) {
+      console.error('CLERK_SECRET_KEY is not set in environment variables. Cannot verify Clerk tokens.');
+      return res.status(500).json({ error: 'Clerk is not configured on the server. Set CLERK_SECRET_KEY.' });
     }
 
-    // Verify Clerk Token cryptographically
-    const verifiedToken = await clerkClient.tokens.verifyToken(token);
+    // Verify Clerk JWT using the standalone verifyToken function
+    const verifiedPayload = await verifyToken(token, {
+      secretKey: clerkSecretKey,
+    });
 
     req.user = {
-      id: verifiedToken.sub
+      id: verifiedPayload.sub
     };
 
     next();
   } catch (error) {
-    console.error('Clerk Auth middleware error:', error);
+    console.error('Clerk Auth middleware error:', error.message || error);
     res.status(401).json({ error: 'Unauthorized, invalid or expired token' });
   }
 };
