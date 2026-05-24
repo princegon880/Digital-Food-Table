@@ -41,15 +41,9 @@ app.use((req, res, next) => {
 // Serve local upload files statically
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Serve static client assets
+// Serve static client assets (mounted unconditionally so it detects new builds dynamically)
 const clientBuildPath = path.join(__dirname, '../client/dist');
-const hasClientBuild = fs.existsSync(clientBuildPath);
-if (hasClientBuild) {
-  app.use(express.static(clientBuildPath));
-  console.log(`Serving client production build from: ${clientBuildPath}`);
-} else {
-  console.log(`Client production build not found at: ${clientBuildPath}. Will fallback to JSON messages.`);
-}
+app.use(express.static(clientBuildPath));
 
 // Mount API Routes
 app.use('/api/auth', require('./routes/auth'));
@@ -120,7 +114,7 @@ app.get('*', (req, res, next) => {
   if (req.path.startsWith('/api/') || req.path.includes('.')) {
     return next();
   }
-  if (hasClientBuild) {
+  if (fs.existsSync(clientBuildPath)) {
     return res.sendFile(path.join(clientBuildPath, 'index.html'), (err) => {
       if (err) {
         next();
@@ -140,7 +134,20 @@ app.use((err, req, res, next) => {
 // Start Server locally (not needed on Vercel - it uses module.exports)
 if (require.main === module) {
   app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+    const os = require('os');
+    const networkInterfaces = os.networkInterfaces();
+    let localIp = 'localhost';
+    for (const interfaceName in networkInterfaces) {
+      for (const iface of networkInterfaces[interfaceName]) {
+        if (iface.family === 'IPv4' && !iface.internal) {
+          localIp = iface.address;
+          break;
+        }
+      }
+    }
+    console.log(`Server is running smoothly:`);
+    console.log(`  - Local:   http://localhost:${PORT}`);
+    console.log(`  - Network: http://${localIp}:${PORT}`);
     console.log(`Uploads folder served at http://localhost:${PORT}/uploads/`);
   });
 }
