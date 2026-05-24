@@ -17,11 +17,23 @@ import { api } from '../utils/api';
 
 const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
+function ClerkNavbar() {
+  const { signOut } = useAuth();
+  return <BaseNavbar signOut={signOut} />;
+}
+
+function LocalNavbar() {
+  return <BaseNavbar signOut={null} />;
+}
+
 export default function Navbar() {
+  return isClerkEnabled ? <ClerkNavbar /> : <LocalNavbar />;
+}
+
+function BaseNavbar({ signOut }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
-  const { signOut } = useAuth();
 
   useEffect(() => {
     async function syncProfile() {
