@@ -4,10 +4,13 @@ const host = process.env.SMTP_HOST;
 const port = process.env.SMTP_PORT;
 const user = process.env.SMTP_USER;
 const pass = process.env.SMTP_PASS;
+const resendApiKey = process.env.RESEND_API_KEY;
 
 let transporter = null;
 
-if (host && port && user && pass) {
+if (resendApiKey) {
+  console.log('Email Service configured: using Resend HTTPS API');
+} else if (host && port && user && pass) {
   console.log(`Email Service configured: using SMTP server ${host}:${port}`);
   transporter = nodemailer.createTransport({
     host,
@@ -20,6 +23,7 @@ if (host && port && user && pass) {
   });
 } else {
   console.log('Email Service not configured. Current state:', {
+    RESEND_API_KEY: resendApiKey ? 'loaded' : 'missing',
     SMTP_HOST: host ? 'loaded' : 'missing',
     SMTP_PORT: port ? 'loaded' : 'missing',
     SMTP_USER: user ? 'loaded' : 'missing',
@@ -45,7 +49,36 @@ async function sendOtpEmail(email, otpCode) {
     </div>
   `;
 
-  if (transporter) {
+  if (resendApiKey) {
+    try {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'QR Dine <onboarding@resend.dev>',
+          to: email,
+          subject,
+          text,
+          html
+        })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        console.log(`[Resend Service] OTP email successfully sent to ${email}`);
+        return true;
+      } else {
+        throw new Error(data.message || 'Resend API Request Failed');
+      }
+    } catch (error) {
+      console.error(`[Resend Service] Failed to send OTP email to ${email}:`, error);
+      logFallback(email, otpCode);
+      return true;
+    }
+  } else if (transporter) {
     try {
       await transporter.sendMail({
         from: `"QR Dine Support" <${user}>`,
@@ -58,20 +91,20 @@ async function sendOtpEmail(email, otpCode) {
       return true;
     } catch (error) {
       console.error(`[Email Service] Failed to send OTP email to ${email}:`, error);
-      // Fallback print to console
-      console.log(`\n======================================================`);
-      console.log(`[FALLBACK OTP CONSOLE] Target Email: ${email}`);
-      console.log(`[FALLBACK OTP CONSOLE] OTP Code: ${otpCode}`);
-      console.log(`======================================================\n`);
-      return true; // Return true as a fallback so testing doesn't break
+      logFallback(email, otpCode);
+      return true;
     }
   } else {
-    console.log(`\n======================================================`);
-    console.log(`[MOCK OTP CONSOLE] Target Email: ${email}`);
-    console.log(`[MOCK OTP CONSOLE] OTP Code: ${otpCode}`);
-    console.log(`======================================================\n`);
+    logFallback(email, otpCode);
     return true;
   }
+}
+
+function logFallback(email, otpCode) {
+  console.log(`\n======================================================`);
+  console.log(`[FALLBACK OTP CONSOLE] Target Email: ${email}`);
+  console.log(`[FALLBACK OTP CONSOLE] OTP Code: ${otpCode}`);
+  console.log(`======================================================\n`);
 }
 
 module.exports = {
