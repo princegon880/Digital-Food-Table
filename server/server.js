@@ -78,11 +78,18 @@ app.get('/api/test-db', async (req, res) => {
     diagnostics.profiles_test = profileError ? { success: false, error: profileError } : { success: true, count: profiles.length, samples: profiles };
 
     // Test categories table
-    const { data: categories, error: categoryError } = await supabase.from('categories').select('*').limit(1);
+    const { data: categories, error: categoryError } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('restaurant_id', 'abc72db7-b2fb-447c-999a-e0aff317c8e5')
+      .order('order', { ascending: true });
     diagnostics.categories_test = categoryError ? { success: false, error: categoryError } : { success: true, count: categories.length, sample: categories[0] };
 
     // Test menu_items table
-    const { data: menuItems, error: menuItemsError } = await supabase.from('menu_items').select('*').limit(1);
+    const { data: menuItems, error: menuItemsError } = await supabase
+      .from('menu_items')
+      .select('*, categories(*)')
+      .eq('restaurant_id', 'abc72db7-b2fb-447c-999a-e0aff317c8e5');
     diagnostics.menu_items_test = menuItemsError ? { success: false, error: menuItemsError } : { success: true, count: menuItems.length, sample: menuItems[0] };
     
     diagnostics.query_time_ms = Date.now() - start;
