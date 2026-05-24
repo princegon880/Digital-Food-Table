@@ -1124,6 +1124,23 @@ export default function OrdersTracker() {
           color: var(--warning);
           border-color: hsla(38, 92%, 50%, 0.3);
         }
+        
+        .empty-state {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          text-align: center;
+          padding: 60px 20px;
+          color: var(--text-dark-muted);
+          width: 100%;
+          gap: 12px;
+        }
+        .empty-state p {
+          font-size: 14px;
+          margin: 0;
+          color: var(--text-dark-secondary);
+        }
       `}</style>
     </div>
   );
