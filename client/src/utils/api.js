@@ -107,20 +107,20 @@ export const api = {
         localStorage.removeItem('user');
         localStorage.removeItem('profile');
         
-        const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
-        if (isClerkEnabled && window.Clerk) {
-          window.Clerk.signOut()
-            .catch(err => console.error('Failed to sign out of Clerk on 401:', err))
-            .finally(() => {
-              if (!window.location.pathname.startsWith('/menu')) {
+        // Don't redirect if already on auth pages or customer menu
+        const path = window.location.pathname;
+        const isAuthPage = path === '/login' || path === '/register' || path.startsWith('/menu');
+        
+        if (!isAuthPage) {
+          const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+          if (isClerkEnabled && window.Clerk) {
+            window.Clerk.signOut()
+              .catch(err => console.error('Failed to sign out of Clerk on 401:', err))
+              .finally(() => {
                 window.location.href = '/login?error=session_expired';
-              }
-            });
-          // Suspend the flow to let the page redirect without console errors
-          return new Promise(() => {});
-        }
-
-        if (!window.location.pathname.startsWith('/menu')) {
+              });
+            return new Promise(() => {});
+          }
           window.location.href = '/login?error=session_expired';
         }
       }

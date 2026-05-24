@@ -125,7 +125,13 @@ function ClerkLogin() {
           return;
         }
       }
-      setError(err.errors?.[0]?.longMessage || err.message || 'Invalid email/phone number or password.');
+      const clerkMsg = err.errors?.[0]?.longMessage || err.errors?.[0]?.message || err.message || '';
+      const isIdentifierInvalid = err.errors?.some(e => e.code === 'form_identifier_not_found' || e.code === 'form_param_format_invalid');
+      if (isIdentifierInvalid) {
+        setError('Account not found. Please log in with your registered email address (not phone number).');
+      } else {
+        setError(clerkMsg || 'Invalid email or password.');
+      }
     } finally {
       setLoading(false);
     }
