@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
 -- Profiles Policies
+DROP POLICY IF EXISTS "Allow public read access to profiles" ON public.profiles;
 CREATE POLICY "Allow public read access to profiles" 
   ON public.profiles FOR SELECT 
   USING (true);
@@ -37,6 +38,7 @@ CREATE TABLE IF NOT EXISTS public.categories (
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 
 -- Categories Policies
+DROP POLICY IF EXISTS "Allow public read access to categories" ON public.categories;
 CREATE POLICY "Allow public read access to categories" 
   ON public.categories FOR SELECT 
   USING (true);
@@ -59,6 +61,7 @@ CREATE TABLE IF NOT EXISTS public.menu_items (
 ALTER TABLE public.menu_items ENABLE ROW LEVEL SECURITY;
 
 -- Menu Items Policies
+DROP POLICY IF EXISTS "Allow public read access to menu items" ON public.menu_items;
 CREATE POLICY "Allow public read access to menu items" 
   ON public.menu_items FOR SELECT 
   USING (true);
@@ -81,10 +84,12 @@ CREATE TABLE IF NOT EXISTS public.orders (
 ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 
 -- Orders Policies
+DROP POLICY IF EXISTS "Allow public to insert orders" ON public.orders;
 CREATE POLICY "Allow public to insert orders" 
   ON public.orders FOR INSERT 
   WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Allow public to read orders for order status checks" ON public.orders;
 CREATE POLICY "Allow public to read orders for order status checks" 
   ON public.orders FOR SELECT 
   USING (true);
