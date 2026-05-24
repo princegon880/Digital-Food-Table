@@ -83,6 +83,7 @@ class QueryBuilder {
     this.sortField = null;
     this.sortAscending = true;
     this.isSingle = false;
+    this.isMaybeSingle = false;
     this.action = 'select'; // 'select', 'insert', 'update', 'delete'
     this.actionPayload = null;
     this.selectFields = '*';
@@ -139,6 +140,11 @@ class QueryBuilder {
     return this;
   }
 
+  maybeSingle() {
+    this.isMaybeSingle = true;
+    return this;
+  }
+
   async execute() {
     const db = readDb();
     let data = db[this.table] || [];
@@ -181,6 +187,13 @@ class QueryBuilder {
       if (this.isSingle) {
         if (data.length === 0) {
           return { data: null, error: { message: `No rows found in table ${this.table}` } };
+        }
+        return { data: data[0], error: null };
+      }
+
+      if (this.isMaybeSingle) {
+        if (data.length === 0) {
+          return { data: null, error: null };
         }
         return { data: data[0], error: null };
       }
