@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSignUp } from '@clerk/clerk-react';
+import { useSignUp, useAuth } from '@clerk/clerk-react';
 import { api } from '../utils/api';
 import { Sparkles, Phone, Lock, Store, AlertCircle, Loader, Mail, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
@@ -9,6 +9,8 @@ const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 function ClerkRegister() {
   const navigate = useNavigate();
   const { isLoaded, signUp, setActive } = useSignUp();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  
   const [step, setStep] = useState('details'); // 'details' or 'otp'
   const [restaurantName, setRestaurantName] = useState('');
   const [email, setEmail] = useState('');
@@ -17,11 +19,19 @@ function ClerkRegister() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [isSigningUp, setIsSigningUp] = useState(false);
 
   // OTP step states
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
   const inputRefs = useRef([]);
+
+  // Auto-redirect if already logged in and not in the process of signing up
+  useEffect(() => {
+    if (authLoaded && isSignedIn && !isSigningUp) {
+      navigate('/dashboard');
+    }
+  }, [authLoaded, isSignedIn, isSigningUp, navigate]);
 
   // Timer effect for OTP resend countdown
   useEffect(() => {
@@ -89,6 +99,12 @@ function ClerkRegister() {
       setTimer(30);
     } catch (err) {
       console.error('Clerk Sign Up Start Error:', err);
+      const isAlreadySignedIn = err.errors?.some(e => e.code === 'already_signed_in') || err.message?.includes('already signed in');
+      if (isAlreadySignedIn) {
+        // Redirect to dashboard since session is active
+        navigate('/dashboard');
+        return;
+      }
       setError(err.errors?.[0]?.longMessage || err.message || 'Failed to start signup. Please try again.');
     } finally {
       setLoading(false);
@@ -100,11 +116,13 @@ function ClerkRegister() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setIsSigningUp(true); // Lock auto-redirects during process
 
     const otpCode = otp.join('');
     if (otpCode.length < 6) {
       setError('Please enter the 6-digit verification code.');
       setLoading(false);
+      setIsSigningUp(false);
       return;
     }
 
@@ -131,13 +149,40 @@ function ClerkRegister() {
         // Save profile locally for state tracking
         localStorage.setItem('profile', JSON.stringify(data.profile));
 
+        setIsSigningUp(false);
         navigate('/dashboard');
       } else {
         setError(`Registration status: ${completeSignUp.status}. Verification incomplete.`);
+        setIsSigningUp(false);
       }
     } catch (err) {
       console.error('Clerk Sign Up Complete Error:', err);
+      const isAlreadySignedIn = err.errors?.some(e => e.code === 'already_signed_in') || err.message?.includes('already signed in');
+      
+      if (isAlreadySignedIn) {
+        // If already signed in, try direct sync profile
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const data = await api.post('/auth/sync-profile', {
+            restaurantName,
+            email,
+            phoneNumber
+          });
+          localStorage.setItem('profile', JSON.stringify(data.profile));
+          setIsSigningUp(false);
+          navigate('/dashboard');
+          return;
+        } catch (syncErr) {
+          console.error('Direct sync failed:', syncErr);
+          setError(syncErr.message || 'Already logged in, but failed to link your restaurant profile. Please log out and try again.');
+          setIsSigningUp(false);
+          setLoading(false);
+          return;
+        }
+      }
+
       setError(err.errors?.[0]?.longMessage || err.message || 'Invalid or expired verification code.');
+      setIsSigningUp(false);
     } finally {
       setLoading(false);
     }
@@ -260,6 +305,14 @@ function LocalRegister() {
   const [timer, setTimer] = useState(30);
   const [expectedOtp, setExpectedOtp] = useState('');
   const inputRefs = useRef([]);
+
+  // Auto-redirect local user if token is active on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && token.startsWith('mock-token-')) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   // Timer effect for OTP resend countdown
   useEffect(() => {

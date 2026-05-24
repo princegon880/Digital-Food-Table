@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useSignIn } from '@clerk/clerk-react';
+import { useSignIn, useAuth } from '@clerk/clerk-react';
 import { api } from '../utils/api';
-import { Sparkles, Phone, Mail, Lock, AlertCircle, CheckCircle2, Loader, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Phone, Mail, Lock, AlertCircle, Loader, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 function ClerkLogin() {
   const navigate = useNavigate();
   const { isLoaded, signIn, setActive } = useSignIn();
+  const { isLoaded: authLoaded, isSignedIn } = useAuth();
+  
   const [view, setView] = useState('login'); // 'login', 'forgot-send', 'forgot-reset'
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -28,6 +30,13 @@ function ClerkLogin() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(30);
   const inputRefs = useRef([]);
+
+  // Auto-redirect to dashboard if user is already signed in
+  useEffect(() => {
+    if (authLoaded && isSignedIn) {
+      navigate('/dashboard');
+    }
+  }, [authLoaded, isSignedIn, navigate]);
 
   // Timer effect for OTP resend countdown
   useEffect(() => {
@@ -92,6 +101,20 @@ function ClerkLogin() {
       }
     } catch (err) {
       console.error('Clerk login error:', err);
+      const isAlreadySignedIn = err.errors?.some(e => e.code === 'already_signed_in') || err.message?.includes('already signed in');
+      if (isAlreadySignedIn) {
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const data = await api.get('/auth/me');
+          localStorage.setItem('profile', JSON.stringify(data.profile));
+          navigate('/dashboard');
+          return;
+        } catch (syncErr) {
+          setError('Already logged in, but failed to fetch your profile. Please log out and try again.');
+          setLoading(false);
+          return;
+        }
+      }
       setError(err.errors?.[0]?.longMessage || err.message || 'Invalid email/phone number or password.');
     } finally {
       setLoading(false);
@@ -318,6 +341,14 @@ function LocalLogin() {
   const [timer, setTimer] = useState(30);
   const [expectedOtp, setExpectedOtp] = useState('');
   const inputRefs = useRef([]);
+
+  // Auto-redirect local user if token is active on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && token.startsWith('mock-token-')) {
+      navigate('/dashboard');
+    }
+  }, [navigate]);
 
   // Timer effect for OTP resend countdown
   useEffect(() => {
