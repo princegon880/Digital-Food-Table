@@ -74,8 +74,8 @@ app.get('/api/test-db', async (req, res) => {
     const start = Date.now();
     
     // Test profiles table
-    const { data: profiles, error: profileError } = await supabase.from('profiles').select('id').limit(1);
-    diagnostics.profiles_test = profileError ? { success: false, error: profileError } : { success: true, count: profiles.length };
+    const { data: profiles, error: profileError } = await supabase.from('profiles').select('*');
+    diagnostics.profiles_test = profileError ? { success: false, error: profileError } : { success: true, count: profiles.length, samples: profiles };
 
     // Test categories table
     const { data: categories, error: categoryError } = await supabase
