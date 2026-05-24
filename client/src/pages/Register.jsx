@@ -654,6 +654,8 @@ function RegisterFormView({
               </span>
             </div>
 
+            <div id="clerk-captcha" />
+
             <button 
               type="submit" 
               className="btn btn-primary auth-submit-btn"
