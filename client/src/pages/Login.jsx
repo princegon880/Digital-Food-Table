@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSignIn } from '@clerk/clerk-react';
 import { api } from '../utils/api';
-import { Sparkles, Phone, Mail, Lock, AlertCircle, CheckCircle2, Loader, ArrowLeft, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Phone, Mail, Lock, AlertCircle, CheckCircle2, Loader, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
-export default function Login() {
+const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+function ClerkLogin() {
   const navigate = useNavigate();
+  const { isLoaded, signIn, setActive } = useSignIn();
   const [view, setView] = useState('login'); // 'login', 'forgot-send', 'forgot-reset'
   const [emailOrPhone, setEmailOrPhone] = useState('');
   const [password, setPassword] = useState('');
@@ -45,7 +49,7 @@ export default function Login() {
     }
   }, [view]);
 
-  // Handle standard login
+  // Handle standard Clerk login
   const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -58,26 +62,43 @@ export default function Login() {
       return;
     }
 
+    if (!isLoaded) {
+      setError('Clerk is loading. Please try again.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const data = await api.post('/auth/login', {
-        phoneNumber: emailOrPhone, // the backend resolves email or phone automatically
-        password
+      const result = await signIn.create({
+        identifier: emailOrPhone,
+        password: password,
       });
 
-      // Save credentials & profile
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('profile', JSON.stringify(data.profile));
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId });
+        
+        // Wait briefly for token resolver propagation
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-      navigate('/dashboard');
+        // Fetch user profile from database
+        const data = await api.get('/auth/me');
+        
+        // Save profile locally
+        localStorage.setItem('profile', JSON.stringify(data.profile));
+
+        navigate('/dashboard');
+      } else {
+        setError(`Login status: ${result.status}. Uncompleted.`);
+      }
     } catch (err) {
-      setError(err.message || 'Invalid email/phone number or password.');
+      console.error('Clerk login error:', err);
+      setError(err.errors?.[0]?.longMessage || err.message || 'Invalid email/phone number or password.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle sending Forgot Password OTP
+  // Handle sending Clerk Forgot Password OTP
   const handleSendResetOtp = async (e) => {
     e.preventDefault();
     setError('');
@@ -91,19 +112,21 @@ export default function Login() {
     }
 
     try {
-      await api.post('/auth/forgot-password/send-otp', {
-        email: resetEmail
+      await signIn.create({
+        strategy: 'reset_password_email_code',
+        identifier: resetEmail,
       });
       setView('forgot-reset');
       setTimer(30);
     } catch (err) {
-      setError(err.message || 'Failed to send OTP code. Please try again.');
+      console.error('Clerk forgot password request error:', err);
+      setError(err.errors?.[0]?.longMessage || err.message || 'Failed to send OTP code. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle resetting password with OTP code
+  // Handle resetting password with OTP code in Clerk
   const handleResetPasswordSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -134,23 +157,32 @@ export default function Login() {
     setLoading(true);
 
     try {
-      await api.post('/auth/forgot-password/reset', {
-        email: resetEmail,
-        otpCode,
-        newPassword
+      const result = await signIn.attemptFirstFactor({
+        strategy: 'reset_password_email_code',
+        code: otpCode,
+        password: newPassword,
       });
-      
-      setSuccessMessage('Password reset successfully! Please log in with your new password.');
-      setView('login');
-      // Reset input fields
-      setEmailOrPhone(resetEmail);
-      setPassword('');
-      setResetEmail('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setOtp(['', '', '', '', '', '']);
+
+      if (result.status === 'complete') {
+        await setActive({ session: result.createdSessionId });
+        
+        // Wait briefly for token resolver propagation
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        // Fetch user profile from database
+        const data = await api.get('/auth/me');
+        
+        // Save profile locally
+        localStorage.setItem('profile', JSON.stringify(data.profile));
+
+        setSuccessMessage('Password reset and logged in successfully!');
+        navigate('/dashboard');
+      } else {
+        setError(`Password reset status: ${result.status}. Uncompleted.`);
+      }
     } catch (err) {
-      setError(err.message || 'Failed to reset password. Please verify the code.');
+      console.error('Clerk reset password complete error:', err);
+      setError(err.errors?.[0]?.longMessage || err.message || 'Failed to reset password. Please verify the code.');
     } finally {
       setLoading(false);
     }
@@ -162,8 +194,9 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      await api.post('/auth/forgot-password/send-otp', {
-        email: resetEmail
+      await signIn.create({
+        strategy: 'reset_password_email_code',
+        identifier: resetEmail,
       });
       setTimer(30);
       setOtp(['', '', '', '', '', '']);
@@ -171,7 +204,7 @@ export default function Login() {
         inputRefs.current[0].focus();
       }
     } catch (err) {
-      setError(err.message || 'Failed to resend verification code.');
+      setError(err.errors?.[0]?.longMessage || err.message || 'Failed to resend verification code.');
     } finally {
       setLoading(false);
     }
@@ -196,14 +229,12 @@ export default function Login() {
     if (e.key === 'Backspace') {
       const newOtp = [...otp];
       if (otp[index] === '') {
-        // If current is empty, delete previous and focus previous
         if (index > 0) {
           newOtp[index - 1] = '';
           setOtp(newOtp);
           inputRefs.current[index - 1].focus();
         }
       } else {
-        // If current is not empty, delete current
         newOtp[index] = '';
         setOtp(newOtp);
       }
@@ -225,6 +256,342 @@ export default function Login() {
     }
   };
 
+  return (
+    <LoginFormView
+      view={view}
+      setView={setView}
+      emailOrPhone={emailOrPhone}
+      setEmailOrPhone={setEmailOrPhone}
+      password={password}
+      setPassword={setPassword}
+      loading={loading}
+      error={error}
+      setError={setError}
+      successMessage={successMessage}
+      setSuccessMessage={setSuccessMessage}
+      showPassword={showPassword}
+      setShowPassword={setShowPassword}
+      showNewPassword={showNewPassword}
+      setShowNewPassword={setShowNewPassword}
+      showConfirmPassword={showConfirmPassword}
+      setShowConfirmPassword={setShowConfirmPassword}
+      resetEmail={resetEmail}
+      setResetEmail={setResetEmail}
+      newPassword={newPassword}
+      setNewPassword={setNewPassword}
+      confirmPassword={confirmPassword}
+      setConfirmPassword={setConfirmPassword}
+      otp={otp}
+      setOtp={setOtp}
+      timer={timer}
+      inputRefs={inputRefs}
+      handleLoginSubmit={handleLoginSubmit}
+      handleSendResetOtp={handleSendResetOtp}
+      handleResetPasswordSubmit={handleResetPasswordSubmit}
+      handleResendResetOtpCode={handleResendResetOtpCode}
+      handleChange={handleChange}
+      handleKeyDown={handleKeyDown}
+      handlePaste={handlePaste}
+    />
+  );
+}
+
+function LocalLogin() {
+  const navigate = useNavigate();
+  const [view, setView] = useState('login'); // 'login', 'forgot-send', 'forgot-reset'
+  const [emailOrPhone, setEmailOrPhone] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Forgot password states
+  const [resetEmail, setResetEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  
+  // OTP states for reset password verification
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [timer, setTimer] = useState(30);
+  const [expectedOtp, setExpectedOtp] = useState('');
+  const inputRefs = useRef([]);
+
+  // Timer effect for OTP resend countdown
+  useEffect(() => {
+    let interval = null;
+    if (view === 'forgot-reset' && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [view, timer]);
+
+  // Focus the first OTP input when transitioning to forgot-reset
+  useEffect(() => {
+    if (view === 'forgot-reset' && inputRefs.current[0]) {
+      setTimeout(() => {
+        inputRefs.current[0].focus();
+      }, 100);
+    }
+  }, [view]);
+
+  // Generate random OTP and log to console
+  const generateMockOtp = () => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setExpectedOtp(code);
+    console.log("======================================================");
+    console.log("[FALLBACK OTP CONSOLE] Target Email: " + resetEmail);
+    console.log("[FALLBACK OTP CONSOLE] OTP Code: " + code);
+    console.log("======================================================");
+  };
+
+  // Handle standard local mock login
+  const handleLoginSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setLoading(true);
+
+    if (!emailOrPhone || !password) {
+      setError('Please fill in all fields.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Set local mock token
+      const mockToken = 'mock-token-' + emailOrPhone.split('@')[0];
+      localStorage.setItem('token', mockToken);
+
+      // Fetch user profile from database
+      const data = await api.get('/auth/me');
+      
+      // Save profile locally
+      localStorage.setItem('profile', JSON.stringify(data.profile));
+
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Local login profile fetch failed:', err);
+      setError('Restaurant profile not found. Please register first.');
+      localStorage.removeItem('token');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle sending Forgot Password OTP (mock)
+  const handleSendResetOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+    setLoading(true);
+
+    if (!resetEmail) {
+      setError('Please enter your email address.');
+      setLoading(false);
+      return;
+    }
+
+    // Simulate sending OTP
+    setTimeout(() => {
+      generateMockOtp();
+      setView('forgot-reset');
+      setTimer(30);
+      setLoading(false);
+    }, 600);
+  };
+
+  // Handle resetting password with OTP code
+  const handleResetPasswordSubmit = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccessMessage('');
+
+    const otpCode = otp.join('');
+    if (otpCode.length < 6) {
+      setError('Please enter the 6-digit verification code.');
+      return;
+    }
+
+    if (otpCode !== expectedOtp && otpCode !== '123456') {
+      setError('Invalid verification code.');
+      return;
+    }
+
+    if (!newPassword || !confirmPassword) {
+      setError('Please enter and confirm your new password.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    const passwordRegex = /^[a-zA-Z]{4,}[^a-zA-Z0-9][0-9]{3,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      setError('Password must start with at least 4 letters, 1 special character, and end with at least 3 digits (e.g. abcd@123).');
+      return;
+    }
+
+    setLoading(true);
+
+    // Simulate password reset completion
+    setTimeout(() => {
+      setSuccessMessage('Password reset successfully! Please log in with your new password.');
+      setView('login');
+      setEmailOrPhone(resetEmail);
+      setPassword('');
+      setResetEmail('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setOtp(['', '', '', '', '', '']);
+      setLoading(false);
+    }, 800);
+  };
+
+  // Resend OTP for forgot password
+  const handleResendResetOtpCode = async () => {
+    if (timer > 0) return;
+    setError('');
+    setLoading(true);
+    setTimeout(() => {
+      generateMockOtp();
+      setTimer(30);
+      setOtp(['', '', '', '', '', '']);
+      setLoading(false);
+      if (inputRefs.current[0]) {
+        inputRefs.current[0].focus();
+      }
+    }, 500);
+  };
+
+  // OTP field handlers
+  const handleChange = (element, index) => {
+    const val = element.value;
+    if (isNaN(val)) return false;
+
+    const newOtp = [...otp];
+    newOtp[index] = val.substring(val.length - 1);
+    setOtp(newOtp);
+
+    // Focus next input
+    if (val !== '' && index < 5) {
+      inputRefs.current[index + 1].focus();
+    }
+  };
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'Backspace') {
+      const newOtp = [...otp];
+      if (otp[index] === '') {
+        if (index > 0) {
+          newOtp[index - 1] = '';
+          setOtp(newOtp);
+          inputRefs.current[index - 1].focus();
+        }
+      } else {
+        newOtp[index] = '';
+        setOtp(newOtp);
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData('text').trim();
+    if (pasteData.length === 6 && /^\d+$/.test(pasteData)) {
+      const newOtp = pasteData.split('');
+      setOtp(newOtp);
+      newOtp.forEach((char, index) => {
+        if (inputRefs.current[index]) {
+          inputRefs.current[index].value = char;
+          inputRefs.current[index].focus();
+        }
+      });
+    }
+  };
+
+  return (
+    <LoginFormView
+      view={view}
+      setView={setView}
+      emailOrPhone={emailOrPhone}
+      setEmailOrPhone={setEmailOrPhone}
+      password={password}
+      setPassword={setPassword}
+      loading={loading}
+      error={error}
+      setError={setError}
+      successMessage={successMessage}
+      setSuccessMessage={setSuccessMessage}
+      showPassword={showPassword}
+      setShowPassword={setShowPassword}
+      showNewPassword={showNewPassword}
+      setShowNewPassword={setShowNewPassword}
+      showConfirmPassword={showConfirmPassword}
+      setShowConfirmPassword={setShowConfirmPassword}
+      resetEmail={resetEmail}
+      setResetEmail={setResetEmail}
+      newPassword={newPassword}
+      setNewPassword={setNewPassword}
+      confirmPassword={confirmPassword}
+      setConfirmPassword={setConfirmPassword}
+      otp={otp}
+      setOtp={setOtp}
+      timer={timer}
+      inputRefs={inputRefs}
+      handleLoginSubmit={handleLoginSubmit}
+      handleSendResetOtp={handleSendResetOtp}
+      handleResetPasswordSubmit={handleResetPasswordSubmit}
+      handleResendResetOtpCode={handleResendResetOtpCode}
+      handleChange={handleChange}
+      handleKeyDown={handleKeyDown}
+      handlePaste={handlePaste}
+    />
+  );
+}
+
+// Presentational component that houses the JSX and styling
+function LoginFormView({
+  view,
+  setView,
+  emailOrPhone,
+  setEmailOrPhone,
+  password,
+  setPassword,
+  loading,
+  error,
+  setError,
+  successMessage,
+  setSuccessMessage,
+  showPassword,
+  setShowPassword,
+  showNewPassword,
+  setShowNewPassword,
+  showConfirmPassword,
+  setShowConfirmPassword,
+  resetEmail,
+  setResetEmail,
+  newPassword,
+  setNewPassword,
+  confirmPassword,
+  setConfirmPassword,
+  otp,
+  timer,
+  inputRefs,
+  handleLoginSubmit,
+  handleSendResetOtp,
+  handleResetPasswordSubmit,
+  handleResendResetOtpCode,
+  handleChange,
+  handleKeyDown,
+  handlePaste,
+}) {
   const renderIcon = () => {
     if (emailOrPhone.includes('@')) {
       return <Mail className="input-icon" size={18} />;
@@ -271,7 +638,7 @@ export default function Login() {
 
         {successMessage && (
           <div className="auth-success">
-            <CheckCircle2 size={16} />
+            <CheckCircle2Icon size={16} />
             <span>{successMessage}</span>
           </div>
         )}
@@ -737,3 +1104,24 @@ export default function Login() {
     </div>
   );
 }
+
+function CheckCircle2Icon({ size }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size || 16}
+      height={size || 16}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </svg>
+  );
+}
+
+export default isClerkEnabled ? ClerkLogin : LocalLogin;

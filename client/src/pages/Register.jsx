@@ -1,10 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSignUp } from '@clerk/clerk-react';
 import { api } from '../utils/api';
-import { Sparkles, Phone, Lock, Store, AlertCircle, Loader, Mail, KeyRound, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Phone, Lock, Store, AlertCircle, Loader, Mail, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
-export default function Register() {
+const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+function ClerkRegister() {
   const navigate = useNavigate();
+  const { isLoaded, signUp, setActive } = useSignUp();
   const [step, setStep] = useState('details'); // 'details' or 'otp'
   const [restaurantName, setRestaurantName] = useState('');
   const [email, setEmail] = useState('');
@@ -65,17 +69,27 @@ export default function Register() {
       return;
     }
 
+    if (!isLoaded) {
+      setError('Clerk is loading. Please try again in a moment.');
+      setLoading(false);
+      return;
+    }
+
     try {
-      await api.post('/auth/register/send-otp', {
-        restaurantName,
-        email,
-        phoneNumber,
-        password
+      // Start Clerk sign up
+      await signUp.create({
+        emailAddress: email,
+        password: password,
       });
+
+      // Prepare verification code
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+      
       setStep('otp');
       setTimer(30);
     } catch (err) {
-      setError(err.message || 'Failed to send OTP code. Please try again.');
+      console.error('Clerk Sign Up Start Error:', err);
+      setError(err.errors?.[0]?.longMessage || err.message || 'Failed to start signup. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -95,22 +109,35 @@ export default function Register() {
     }
 
     try {
-      const data = await api.post('/auth/register/verify-otp', {
-        restaurantName,
-        email,
-        phoneNumber,
-        password,
-        otpCode
+      // Attempt verification
+      const completeSignUp = await signUp.attemptEmailAddressVerification({
+        code: otpCode,
       });
 
-      // Save credentials & profile
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('profile', JSON.stringify(data.profile));
+      if (completeSignUp.status === 'complete') {
+        // Activate session
+        await setActive({ session: completeSignUp.createdSessionId });
+        
+        // Wait briefly for token resolver propagation
+        await new Promise((resolve) => setTimeout(resolve, 500));
 
-      navigate('/dashboard');
+        // Sync profile with database
+        const data = await api.post('/auth/sync-profile', {
+          restaurantName,
+          email,
+          phoneNumber
+        });
+
+        // Save profile locally for state tracking
+        localStorage.setItem('profile', JSON.stringify(data.profile));
+
+        navigate('/dashboard');
+      } else {
+        setError(`Registration status: ${completeSignUp.status}. Verification incomplete.`);
+      }
     } catch (err) {
-      setError(err.message || 'Invalid or expired verification code.');
+      console.error('Clerk Sign Up Complete Error:', err);
+      setError(err.errors?.[0]?.longMessage || err.message || 'Invalid or expired verification code.');
     } finally {
       setLoading(false);
     }
@@ -122,19 +149,14 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      await api.post('/auth/register/send-otp', {
-        restaurantName,
-        email,
-        phoneNumber,
-        password
-      });
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
       setTimer(30);
       setOtp(['', '', '', '', '', '']);
       if (inputRefs.current[0]) {
         inputRefs.current[0].focus();
       }
     } catch (err) {
-      setError(err.message || 'Failed to resend verification code.');
+      setError(err.errors?.[0]?.longMessage || err.message || 'Failed to resend verification code.');
     } finally {
       setLoading(false);
     }
@@ -166,14 +188,12 @@ export default function Register() {
     if (e.key === 'Backspace') {
       const newOtp = [...otp];
       if (otp[index] === '') {
-        // If current is empty, delete previous and focus previous
         if (index > 0) {
           newOtp[index - 1] = '';
           setOtp(newOtp);
           inputRefs.current[index - 1].focus();
         }
       } else {
-        // If current is not empty, delete current
         newOtp[index] = '';
         setOtp(newOtp);
       }
@@ -195,6 +215,284 @@ export default function Register() {
     }
   };
 
+  return (
+    <RegisterFormView
+      step={step}
+      restaurantName={restaurantName}
+      setRestaurantName={setRestaurantName}
+      email={email}
+      setEmail={setEmail}
+      phoneNumber={phoneNumber}
+      setPhoneNumber={setPhoneNumber}
+      password={password}
+      setPassword={setPassword}
+      loading={loading}
+      error={error}
+      showPassword={showPassword}
+      setShowPassword={setShowPassword}
+      otp={otp}
+      timer={timer}
+      inputRefs={inputRefs}
+      handleSendOtp={handleSendOtp}
+      handleVerifyOtp={handleVerifyOtp}
+      handleResend={handleResend}
+      handleGoBack={handleGoBack}
+      handleChange={handleChange}
+      handleKeyDown={handleKeyDown}
+      handlePaste={handlePaste}
+    />
+  );
+}
+
+function LocalRegister() {
+  const navigate = useNavigate();
+  const [step, setStep] = useState('details'); // 'details' or 'otp'
+  const [restaurantName, setRestaurantName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+
+  // OTP step states
+  const [otp, setOtp] = useState(['', '', '', '', '', '']);
+  const [timer, setTimer] = useState(30);
+  const [expectedOtp, setExpectedOtp] = useState('');
+  const inputRefs = useRef([]);
+
+  // Timer effect for OTP resend countdown
+  useEffect(() => {
+    let interval = null;
+    if (step === 'otp' && timer > 0) {
+      interval = setInterval(() => {
+        setTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [step, timer]);
+
+  // Focus the first OTP input when step changes to 'otp'
+  useEffect(() => {
+    if (step === 'otp' && inputRefs.current[0]) {
+      setTimeout(() => {
+        inputRefs.current[0].focus();
+      }, 100);
+    }
+  }, [step]);
+
+  // Generate random OTP and log to console
+  const generateMockOtp = () => {
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    setExpectedOtp(code);
+    console.log("======================================================");
+    console.log("[FALLBACK OTP CONSOLE] Target Email: " + email);
+    console.log("[FALLBACK OTP CONSOLE] OTP Code: " + code);
+    console.log("======================================================");
+  };
+
+  // Handle Step 1: Send registration OTP (mock code)
+  const handleSendOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    if (!restaurantName || !email || !phoneNumber || !password) {
+      setError('Please fill in all fields.');
+      setLoading(false);
+      return;
+    }
+
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    if (cleanPhone.length !== 10) {
+      setError('Phone number must be exactly 10 digits.');
+      setLoading(false);
+      return;
+    }
+
+    const passwordRegex = /^[a-zA-Z]{4,}[^a-zA-Z0-9][0-9]{3,}$/;
+    if (!passwordRegex.test(password)) {
+      setError('Password must start with at least 4 letters, 1 special character, and end with at least 3 digits (e.g. abcd@123).');
+      setLoading(false);
+      return;
+    }
+
+    // Simulate sending OTP
+    setTimeout(() => {
+      generateMockOtp();
+      setStep('otp');
+      setTimer(30);
+      setLoading(false);
+    }, 800);
+  };
+
+  // Handle Step 2: Verify OTP and complete registration
+  const handleVerifyOtp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const otpCode = otp.join('');
+    if (otpCode.length < 6) {
+      setError('Please enter the 6-digit verification code.');
+      setLoading(false);
+      return;
+    }
+
+    if (otpCode !== expectedOtp && otpCode !== '123456') {
+      setError('Invalid verification code.');
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Set mock token
+      const mockToken = 'mock-token-' + email.split('@')[0];
+      localStorage.setItem('token', mockToken);
+
+      // Sync profile with database
+      const data = await api.post('/auth/sync-profile', {
+        restaurantName,
+        email,
+        phoneNumber
+      });
+
+      // Save profile locally
+      localStorage.setItem('profile', JSON.stringify(data.profile));
+
+      navigate('/dashboard');
+    } catch (err) {
+      console.error('Local Register Error:', err);
+      setError(err.message || 'Server error during local registration.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend OTP handler
+  const handleResend = async () => {
+    if (timer > 0) return;
+    setError('');
+    setLoading(true);
+    setTimeout(() => {
+      generateMockOtp();
+      setTimer(30);
+      setOtp(['', '', '', '', '', '']);
+      setLoading(false);
+      if (inputRefs.current[0]) {
+        inputRefs.current[0].focus();
+      }
+    }, 500);
+  };
+
+  // Go back to details step
+  const handleGoBack = () => {
+    setStep('details');
+    setError('');
+    setOtp(['', '', '', '', '', '']);
+  };
+
+  // OTP field handlers
+  const handleChange = (element, index) => {
+    const val = element.value;
+    if (isNaN(val)) return false;
+
+    const newOtp = [...otp];
+    newOtp[index] = val.substring(val.length - 1);
+    setOtp(newOtp);
+
+    // Focus next input
+    if (val !== '' && index < 5) {
+      inputRefs.current[index + 1].focus();
+    }
+  };
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'Backspace') {
+      const newOtp = [...otp];
+      if (otp[index] === '') {
+        if (index > 0) {
+          newOtp[index - 1] = '';
+          setOtp(newOtp);
+          inputRefs.current[index - 1].focus();
+        }
+      } else {
+        newOtp[index] = '';
+        setOtp(newOtp);
+      }
+    }
+  };
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const pasteData = e.clipboardData.getData('text').trim();
+    if (pasteData.length === 6 && /^\d+$/.test(pasteData)) {
+      const newOtp = pasteData.split('');
+      setOtp(newOtp);
+      newOtp.forEach((char, index) => {
+        if (inputRefs.current[index]) {
+          inputRefs.current[index].value = char;
+          inputRefs.current[index].focus();
+        }
+      });
+    }
+  };
+
+  return (
+    <RegisterFormView
+      step={step}
+      restaurantName={restaurantName}
+      setRestaurantName={setRestaurantName}
+      email={email}
+      setEmail={setEmail}
+      phoneNumber={phoneNumber}
+      setPhoneNumber={setPhoneNumber}
+      password={password}
+      setPassword={setPassword}
+      loading={loading}
+      error={error}
+      showPassword={showPassword}
+      setShowPassword={setShowPassword}
+      otp={otp}
+      timer={timer}
+      inputRefs={inputRefs}
+      handleSendOtp={handleSendOtp}
+      handleVerifyOtp={handleVerifyOtp}
+      handleResend={handleResend}
+      handleGoBack={handleGoBack}
+      handleChange={handleChange}
+      handleKeyDown={handleKeyDown}
+      handlePaste={handlePaste}
+    />
+  );
+}
+
+// Presentational component that houses the JSX and styling
+function RegisterFormView({
+  step,
+  restaurantName,
+  setRestaurantName,
+  email,
+  setEmail,
+  phoneNumber,
+  setPhoneNumber,
+  password,
+  setPassword,
+  loading,
+  error,
+  showPassword,
+  setShowPassword,
+  otp,
+  timer,
+  inputRefs,
+  handleSendOtp,
+  handleVerifyOtp,
+  handleResend,
+  handleGoBack,
+  handleChange,
+  handleKeyDown,
+  handlePaste,
+}) {
   return (
     <div className="auth-wrapper">
       <div className="radial-glow bg-glow"></div>
@@ -327,17 +625,17 @@ export default function Register() {
               <div className="otp-grid">
                 {otp.map((digit, idx) => (
                   <input
-                    key={idx}
-                    type="text"
-                    maxLength={1}
-                    value={digit}
-                    ref={(el) => (inputRefs.current[idx] = el)}
-                    onChange={(e) => handleChange(e.target, idx)}
-                    onKeyDown={(e) => handleKeyDown(e, idx)}
-                    onPaste={handlePaste}
-                    className="otp-field"
-                    required
-                    disabled={loading}
+                     key={idx}
+                     type="text"
+                     maxLength={1}
+                     value={digit}
+                     ref={(el) => (inputRefs.current[idx] = el)}
+                     onChange={(e) => handleChange(e.target, idx)}
+                     onKeyDown={(e) => handleKeyDown(e, idx)}
+                     onPaste={handlePaste}
+                     className="otp-field"
+                     required
+                     disabled={loading}
                   />
                 ))}
               </div>
@@ -585,3 +883,5 @@ export default function Register() {
     </div>
   );
 }
+
+export default isClerkEnabled ? ClerkRegister : LocalRegister;

@@ -8,8 +8,26 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || (
     : '/api'
 );
 
-const getHeaders = () => {
-  const token = localStorage.getItem('token');
+let tokenResolver = null;
+
+export const setTokenResolver = (resolver) => {
+  tokenResolver = resolver;
+};
+
+const getHeaders = async () => {
+  let token = null;
+  try {
+    if (tokenResolver) {
+      token = await tokenResolver();
+    }
+  } catch (err) {
+    console.error('Failed to resolve token from Clerk:', err);
+  }
+  
+  if (!token) {
+    token = localStorage.getItem('token');
+  }
+
   const headers = {
     'Content-Type': 'application/json'
   };
@@ -21,15 +39,16 @@ const getHeaders = () => {
 
 export const api = {
   async get(endpoint) {
+    const headers = await getHeaders();
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'GET',
-      headers: getHeaders()
+      headers
     });
     return this.handleResponse(response);
   },
 
   async post(endpoint, body, isFormData = false) {
-    const headers = getHeaders();
+    const headers = await getHeaders();
     if (isFormData) {
       // Let fetch set Content-Type with boundary for files
       delete headers['Content-Type'];
@@ -44,18 +63,20 @@ export const api = {
   },
 
   async put(endpoint, body) {
+    const headers = await getHeaders();
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'PUT',
-      headers: getHeaders(),
+      headers,
       body: JSON.stringify(body)
     });
     return this.handleResponse(response);
   },
 
   async delete(endpoint) {
+    const headers = await getHeaders();
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: 'DELETE',
-      headers: getHeaders()
+      headers
     });
     return this.handleResponse(response);
   },

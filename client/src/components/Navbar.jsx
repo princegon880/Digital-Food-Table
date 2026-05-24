@@ -12,12 +12,16 @@ import {
   Activity,
   ClipboardList
 } from 'lucide-react';
+import { useAuth } from '@clerk/clerk-react';
 import { api } from '../utils/api';
+
+const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
+  const { signOut } = useAuth();
 
   useEffect(() => {
     async function syncProfile() {
@@ -34,7 +38,14 @@ export default function Navbar() {
     syncProfile();
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      if (isClerkEnabled && signOut) {
+        await signOut();
+      }
+    } catch (err) {
+      console.error('Failed to sign out of Clerk:', err);
+    }
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('profile');

@@ -1,4 +1,11 @@
-const supabase = require('../config/supabase');
+const { createClerkClient } = require('@clerk/backend');
+
+const clerkSecretKey = process.env.CLERK_SECRET_KEY;
+let clerkClient = null;
+
+if (clerkSecretKey) {
+  clerkClient = createClerkClient({ secretKey: clerkSecretKey });
+}
 
 const requireAuth = async (req, res, next) => {
   try {
@@ -8,20 +15,32 @@ const requireAuth = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    
-    // Call Supabase auth.getUser to verify the token and fetch user details
-    const { data: { user }, error } = await supabase.auth.getUser(token);
 
-    if (error || !user) {
-      return res.status(401).json({ error: 'Unauthorized, invalid or expired token' });
+    // Local mock token check for offline testing
+    if (token.startsWith('mock-token-')) {
+      const mockUserId = token.replace('mock-token-', '');
+      req.user = {
+        id: mockUserId,
+        email: `${mockUserId}@example.com`
+      };
+      return next();
     }
 
-    // Attach user object to request
-    req.user = user;
+    if (!clerkClient) {
+      return res.status(500).json({ error: 'Clerk is not configured on the server' });
+    }
+
+    // Verify Clerk Token cryptographically
+    const verifiedToken = await clerkClient.tokens.verifyToken(token);
+
+    req.user = {
+      id: verifiedToken.sub
+    };
+
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
-    res.status(500).json({ error: 'Internal server error during authentication' });
+    console.error('Clerk Auth middleware error:', error);
+    res.status(401).json({ error: 'Unauthorized, invalid or expired token' });
   }
 };
 

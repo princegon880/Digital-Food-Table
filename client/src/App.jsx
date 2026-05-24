@@ -1,4 +1,7 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
+import { setTokenResolver } from './utils/api';
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import Login from './pages/Login';
@@ -11,8 +14,44 @@ import CustomerMenu from './pages/CustomerMenu';
 import LiveDashboard from './pages/Dashboard/LiveDashboard';
 import OrdersTracker from './pages/Dashboard/OrdersTracker';
 
+const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
+
+// Clerk Token Resolver component to set active session token
+function ClerkTokenResolver() {
+  const { getToken } = useAuth();
+  useEffect(() => {
+    setTokenResolver(getToken);
+  }, [getToken]);
+  return null;
+}
+
 // Protected Route Wrapper
-function ProtectedRoute({ children }) {
+function ClerkProtectedRoute({ children }) {
+  const { isLoaded, isSignedIn } = useAuth();
+  const location = useLocation();
+
+  if (!isLoaded) {
+    return (
+      <div style={{ display: 'flex', height: '100vh', flexDirection: 'column', gap: '16px', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-dark)', color: 'var(--text-dark-primary)' }}>
+        <div style={{ width: '40px', height: '40px', border: '3px solid rgba(255,255,255,0.05)', borderTopColor: 'var(--primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+        <p style={{ fontSize: '14px', color: 'var(--text-dark-secondary)' }}>Loading Session...</p>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (!isSignedIn) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  return children;
+}
+
+function LocalProtectedRoute({ children }) {
   const token = localStorage.getItem('token');
   const location = useLocation();
 
@@ -22,6 +61,8 @@ function ProtectedRoute({ children }) {
 
   return children;
 }
+
+const ProtectedRoute = isClerkEnabled ? ClerkProtectedRoute : LocalProtectedRoute;
 
 // Dashboard Layout wrapper to include the Sidebar
 function DashboardLayout() {
@@ -72,6 +113,7 @@ function DashboardLayout() {
 export default function App() {
   return (
     <BrowserRouter>
+      {isClerkEnabled && <ClerkTokenResolver />}
       <Routes>
         {/* Public Landing Pages */}
         <Route path="/" element={<LandingPage />} />

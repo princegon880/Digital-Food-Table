@@ -1,9 +1,9 @@
--- SUPABASE SQL DATABASE SCHEMA FOR QR MENU SAAS
+-- SUPABASE SQL DATABASE SCHEMA FOR QR MENU SAAS WITH CLERK AUTH
 -- Copy and paste this script into your Supabase SQL Editor and click "Run".
 
 -- 1. PROFILES (Restaurant Owner Settings)
 CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  id TEXT PRIMARY KEY, -- Clerk User ID (e.g. user_2N4k...)
   restaurant_name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
   phone_number TEXT NOT NULL,
@@ -23,19 +23,11 @@ CREATE POLICY "Allow public read access to profiles"
   ON public.profiles FOR SELECT 
   USING (true);
 
-CREATE POLICY "Allow owners to update their own profile" 
-  ON public.profiles FOR UPDATE 
-  USING (auth.uid() = id);
-
-CREATE POLICY "Allow owners to insert their own profile" 
-  ON public.profiles FOR INSERT 
-  WITH CHECK (auth.uid() = id);
-
 
 -- 2. CATEGORIES
 CREATE TABLE IF NOT EXISTS public.categories (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  restaurant_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  restaurant_id TEXT NOT NULL, -- Clerk User ID
   name TEXT NOT NULL,
   icon TEXT DEFAULT '🍽️',
   "order" INTEGER DEFAULT 0
@@ -49,16 +41,11 @@ CREATE POLICY "Allow public read access to categories"
   ON public.categories FOR SELECT 
   USING (true);
 
-CREATE POLICY "Allow owners to manage categories" 
-  ON public.categories FOR ALL 
-  USING (auth.uid() = restaurant_id)
-  WITH CHECK (auth.uid() = restaurant_id);
-
 
 -- 3. MENU ITEMS
 CREATE TABLE IF NOT EXISTS public.menu_items (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  restaurant_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  restaurant_id TEXT NOT NULL, -- Clerk User ID
   category_id UUID REFERENCES public.categories(id) ON DELETE CASCADE NOT NULL,
   name TEXT NOT NULL,
   price NUMERIC NOT NULL,
@@ -76,20 +63,17 @@ CREATE POLICY "Allow public read access to menu items"
   ON public.menu_items FOR SELECT 
   USING (true);
 
-CREATE POLICY "Allow owners to manage menu items" 
-  ON public.menu_items FOR ALL 
-  USING (auth.uid() = restaurant_id)
-  WITH CHECK (auth.uid() = restaurant_id);
-
 
 -- 4. ORDERS
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  restaurant_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  restaurant_id TEXT NOT NULL, -- Clerk User ID
   table_number TEXT NOT NULL,
   items JSONB NOT NULL,
   total_price NUMERIC NOT NULL,
   status TEXT DEFAULT 'Pending' CHECK (status IN ('Pending', 'Preparing', 'Completed', 'Cancelled')),
+  payment_status TEXT DEFAULT 'Unpaid' CHECK (payment_status IN ('Unpaid', 'Paid')),
+  payment_method TEXT DEFAULT NULL CHECK (payment_method IN ('Cash', 'UPI', 'Card')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -104,31 +88,3 @@ CREATE POLICY "Allow public to insert orders"
 CREATE POLICY "Allow public to read orders for order status checks" 
   ON public.orders FOR SELECT 
   USING (true);
-
-CREATE POLICY "Allow owners to manage/read orders" 
-  ON public.orders FOR ALL 
-  USING (auth.uid() = restaurant_id)
-  WITH CHECK (auth.uid() = restaurant_id);
-
--- 5. OTPS (Email One-Time Password Verification)
-CREATE TABLE IF NOT EXISTS public.otps (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  email TEXT NOT NULL,
-  otp_code TEXT NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  verified BOOLEAN DEFAULT FALSE,
-  created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Enable RLS for OTPS
-ALTER TABLE public.otps ENABLE ROW LEVEL SECURITY;
-
--- OTPS Policies
-CREATE POLICY "Allow public insert to otps" 
-  ON public.otps FOR INSERT 
-  WITH CHECK (true);
-
-CREATE POLICY "Allow public select/update to check otp" 
-  ON public.otps FOR ALL 
-  USING (true)
-  WITH CHECK (true);
