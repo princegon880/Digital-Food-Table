@@ -47,12 +47,13 @@ router.post('/sync-profile', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Please enter all fields' });
   }
 
-  const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+  const cleanPhone = String(phoneNumber).replace(/[^0-9]/g, '');
   if (cleanPhone.length !== 10) {
     return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
   }
 
   const cleanEmail = email.trim().toLowerCase();
+  const phoneInt = parseInt(cleanPhone, 10);
 
   try {
     // 1. Check if profile already exists for this Clerk ID
@@ -65,20 +66,28 @@ router.post('/sync-profile', requireAuth, async (req, res) => {
     if (getError) throw getError;
     if (existingProfile) {
       // If it exists but is a default placeholder profile, update it with the actual registration details!
-      if (existingProfile.restaurant_name === 'My Restaurant' || existingProfile.phone_number === '0000000000') {
+      const isDefaultName = existingProfile.restaurant_name === 'My Restaurant';
+      const isDefaultPhone = existingProfile.phone_number === 0 || String(existingProfile.phone_number) === '0' || String(existingProfile.phone_number) === '0000000000';
+      
+      if (isDefaultName || isDefaultPhone) {
         console.log(`Race condition detected for Clerk ID ${req.user.id}. Updating default profile with real registration details...`);
         const { data: updatedProfile, error: updateError } = await supabase
           .from('profiles')
           .update({
             restaurant_name: restaurantName,
-            phone_number: cleanPhone,
+            phone_number: phoneInt,
             email: cleanEmail
           })
           .eq('id', req.user.id)
           .select()
           .single();
 
-        if (!updateError && updatedProfile) {
+        if (updateError) {
+          console.error('Race condition update error:', updateError);
+          return res.status(500).json({ error: 'Failed to update existing default profile: ' + updateError.message });
+        }
+
+        if (updatedProfile) {
           return res.status(200).json({
             message: 'Profile updated with signup details',
             profile: updatedProfile
@@ -95,7 +104,7 @@ router.post('/sync-profile', requireAuth, async (req, res) => {
     const { data: existingPhone } = await supabase
       .from('profiles')
       .select('id')
-      .eq('phone_number', cleanPhone);
+      .eq('phone_number', phoneInt);
 
     if (existingPhone && existingPhone.length > 0) {
       return res.status(400).json({ error: 'A restaurant with this phone number already exists' });
@@ -122,7 +131,7 @@ router.post('/sync-profile', requireAuth, async (req, res) => {
           id: req.user.id,
           restaurant_name: restaurantName,
           slug: slug,
-          phone_number: cleanPhone,
+          phone_number: phoneInt,
           email: cleanEmail
         }
       ])
@@ -182,7 +191,7 @@ router.get('/me', requireAuth, async (req, res) => {
           id: req.user.id,
           restaurant_name: 'My Restaurant',
           slug: slug,
-          phone_number: '0000000000',
+          phone_number: 0,
           email: ''
         }
       ])
@@ -216,11 +225,11 @@ router.put('/profile', requireAuth, async (req, res) => {
   
   if (restaurantName !== undefined) updates.restaurant_name = restaurantName;
   if (phoneNumber !== undefined) {
-    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    const cleanPhone = String(phoneNumber).replace(/[^0-9]/g, '');
     if (cleanPhone.length !== 10) {
       return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
     }
-    updates.phone_number = cleanPhone;
+    updates.phone_number = parseInt(cleanPhone, 10);
   }
   if (currency !== undefined) updates.currency = currency;
   if (coverImage !== undefined) updates.cover_image = coverImage;
