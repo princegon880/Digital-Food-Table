@@ -72,18 +72,21 @@ app.get('/api/test-db', async (req, res) => {
 
   try {
     const start = Date.now();
-    const { data, error } = await supabase.from('profiles').select('restaurant_name, slug');
+    
+    // Test profiles table
+    const { data: profiles, error: profileError } = await supabase.from('profiles').select('restaurant_name, slug');
+    diagnostics.profiles_test = profileError ? { success: false, error: profileError } : { success: true, count: profiles.length };
+
+    // Test categories table
+    const { data: categories, error: categoryError } = await supabase.from('categories').select('*').limit(1);
+    diagnostics.categories_test = categoryError ? { success: false, error: categoryError } : { success: true, count: categories.length };
+
+    // Test menu_items table
+    const { data: menuItems, error: menuItemsError } = await supabase.from('menu_items').select('*').limit(1);
+    diagnostics.menu_items_test = menuItemsError ? { success: false, error: menuItemsError } : { success: true, count: menuItems.length };
     
     diagnostics.query_time_ms = Date.now() - start;
-    
-    if (error) {
-      diagnostics.query_success = false;
-      diagnostics.database_error = error;
-    } else {
-      diagnostics.query_success = true;
-      diagnostics.profiles_count = data ? data.length : 0;
-      diagnostics.profiles = data;
-    }
+    diagnostics.query_success = !profileError && !categoryError && !menuItemsError;
   } catch (err) {
     diagnostics.query_success = false;
     diagnostics.exception = err.message || err;
