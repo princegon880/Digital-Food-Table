@@ -106,6 +106,8 @@ function ClerkLogin() {
         localStorage.setItem('profile', JSON.stringify(data.profile));
 
         navigate('/dashboard');
+      } else if (result.status === 'needs_second_factor') {
+        setError('Multi-factor authentication (2FA) is required on this account, or Clerk has flagged this login as suspicious. Please disable Multi-Factor Authentication (MFA) in your Clerk Dashboard (Security -> Multi-factor) to run performance tests.');
       } else {
         setError(`Login status: ${result.status}. Uncompleted.`);
       }
