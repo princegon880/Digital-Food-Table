@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   cover_image TEXT DEFAULT '',
   established_year TEXT DEFAULT '2026',
   tagline TEXT DEFAULT 'Premium Dining Experience',
+  order_mode TEXT DEFAULT 'both' CHECK (order_mode IN ('whatsapp', 'dashboard', 'both')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

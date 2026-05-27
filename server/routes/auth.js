@@ -220,7 +220,7 @@ router.get('/me', requireAuth, async (req, res) => {
 // @desc    Update restaurant profile settings
 // @access  Private
 router.put('/profile', requireAuth, async (req, res) => {
-  const { restaurantName, phoneNumber, currency, coverImage, establishedYear, tagline, slug } = req.body;
+  const { restaurantName, phoneNumber, currency, coverImage, establishedYear, tagline, slug, orderMode } = req.body;
   const updates = {};
   
   if (restaurantName !== undefined) updates.restaurant_name = restaurantName;
@@ -235,6 +235,13 @@ router.put('/profile', requireAuth, async (req, res) => {
   if (coverImage !== undefined) updates.cover_image = coverImage;
   if (establishedYear !== undefined) updates.established_year = establishedYear;
   if (tagline !== undefined) updates.tagline = tagline;
+  if (orderMode !== undefined) {
+    const validModes = ['whatsapp', 'dashboard', 'both'];
+    if (!validModes.includes(orderMode)) {
+      return res.status(400).json({ error: 'Invalid order mode. Must be whatsapp, dashboard, or both.' });
+    }
+    updates.order_mode = orderMode;
+  }
 
   try {
     if (slug !== undefined) {

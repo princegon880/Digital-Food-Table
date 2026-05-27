@@ -190,9 +190,13 @@ export default function CustomerMenu() {
     if (cartItemsList.length === 0) return;
 
     const total = getCartTotal();
+    // Read the admin's preferred notification mode (default to 'both' for backward compat)
+    const mode = restaurant.order_mode || 'both';
+    const sendWhatsApp = mode === 'whatsapp' || mode === 'both';
+    const sendDashboard = mode === 'dashboard' || mode === 'both';
 
     try {
-      // 1. Format WhatsApp message
+      // Build WhatsApp message (only used if sendWhatsApp is true)
       const currency = restaurant.currency || '₹';
       let message = `*NEW ORDER - ${restaurant.restaurant_name}*\n`;
       message += `*Table:* ${tableNumber}\n`;
@@ -210,12 +214,12 @@ export default function CustomerMenu() {
 
       const encodedText = encodeURIComponent(message);
       let cleanPhone = restaurant.phone_number;
-      if (cleanPhone.length === 10 && (restaurant.currency === '₹' || !restaurant.currency)) {
+      if (String(cleanPhone).length === 10 && (restaurant.currency === '₹' || !restaurant.currency)) {
         cleanPhone = '91' + cleanPhone;
       }
       const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
 
-      // 2. Clear cart and show success screen immediately
+      // Clear cart and show success screen
       const simulatedOrder = {
         table_number: tableNumber,
         items: cartItemsList,
@@ -227,25 +231,27 @@ export default function CustomerMenu() {
       setCartOpen(false);
       setOrderPlaced(true);
 
-      // 3. PRIMARY — Open WhatsApp right away (no await, no delay)
-      window.open(whatsappUrl, '_blank');
+      // Conditionally open WhatsApp
+      if (sendWhatsApp) {
+        window.open(whatsappUrl, '_blank');
+      }
 
-      // 4. SECONDARY — Silently save order to Live Kitchen database
-      //    Runs in parallel; failure does NOT affect the customer's WhatsApp flow.
-      api.post('/orders', {
-        restaurantSlug: slug,
-        tableNumber: tableNumber,
-        items: cartItemsList.map(item => ({
-          id: item.id,
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity
-        })),
-        totalPrice: total
-      }).catch(err => {
-        // Silent fail — WhatsApp already opened, customer is unaffected
-        console.warn('Live Kitchen save failed (WhatsApp order still sent):', err.message);
-      });
+      // Conditionally save to Live Kitchen dashboard
+      if (sendDashboard) {
+        api.post('/orders', {
+          restaurantSlug: slug,
+          tableNumber: tableNumber,
+          items: cartItemsList.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            quantity: item.quantity
+          })),
+          totalPrice: total
+        }).catch(err => {
+          console.warn('Live Kitchen save failed:', err.message);
+        });
+      }
 
     } catch (err) {
       alert('Order placement failed: ' + err.message);
@@ -447,8 +453,15 @@ export default function CustomerMenu() {
             <div className="success-icon-ring">
               <CheckCircle className="success-icon" size={32} />
             </div>
-            <h2>Order Sent to Kitchen!</h2>
-            <p className="success-desc">Your order is being sent via WhatsApp and has been recorded in our kitchen system. 🎉</p>
+            <h2>Order Sent!</h2>
+            <p className="success-desc">
+              {(() => {
+                const mode = restaurant?.order_mode || 'both';
+                if (mode === 'whatsapp') return 'Your order has been sent via WhatsApp. Show this to a staff member if needed. 📱';
+                if (mode === 'dashboard') return 'Your order has been sent directly to the kitchen screen. Sit tight! 🖥️';
+                return 'Your order is being sent via WhatsApp and has been recorded in our kitchen system. 🎉';
+              })()}
+            </p>
             
             <div className="como-receipt-box">
               <div className="receipt-header">
@@ -790,7 +803,14 @@ export default function CustomerMenu() {
                 disabled={Object.values(cart).length === 0}
               >
                 <ShoppingBag size={20} />
-                <span>Place Order via WhatsApp</span>
+                <span>
+                  {(() => {
+                    const mode = restaurant?.order_mode || 'both';
+                    if (mode === 'whatsapp') return 'Place Order via WhatsApp';
+                    if (mode === 'dashboard') return 'Send Order to Kitchen';
+                    return 'Place Order';
+                  })()}
+                </span>
               </button>
             </div>
           </div>

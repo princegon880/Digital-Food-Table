@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api, resolveImageUrl } from '../../utils/api';
-import { Save, User, Phone, Globe, Image as ImageIcon, Upload, Check, Calendar, Link2 } from 'lucide-react';
+import { Save, User, Phone, Globe, Image as ImageIcon, Upload, Check, Calendar, Link2, MessageCircle, Monitor, Layers } from 'lucide-react';
 
 export default function Settings() {
   const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
@@ -12,6 +12,7 @@ export default function Settings() {
   const [establishedYear, setEstablishedYear] = useState(profile.established_year || '2026');
   const [tagline, setTagline] = useState(profile.tagline || 'Premium Dining Experience');
   const [slug, setSlug] = useState(profile.slug || '');
+  const [orderMode, setOrderMode] = useState(profile.order_mode || 'both');
   
   const [imageFile, setImageFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -34,6 +35,7 @@ export default function Settings() {
           setEstablishedYear(data.profile.established_year || '2026');
           setTagline(data.profile.tagline || 'Premium Dining Experience');
           setSlug(data.profile.slug || '');
+          setOrderMode(data.profile.order_mode || 'both');
         }
       } catch (err) {
         console.error('Failed to fetch profile in settings:', err);
@@ -95,7 +97,8 @@ export default function Settings() {
         coverImage: finalCoverImage,
         establishedYear,
         tagline,
-        slug
+        slug,
+        orderMode
       });
 
       // Update local storage and state
@@ -206,6 +209,63 @@ export default function Settings() {
               />
             </div>
             <span className="input-hint">10-digit mobile number without country code or spaces.</span>
+          </div>
+
+          {/* Order Notification Mode */}
+          <div className="form-group">
+            <label className="form-label" style={{ marginBottom: '12px', display: 'block' }}>Order Notification Mode</label>
+            <p className="input-hint" style={{ marginBottom: '12px' }}>Choose how you want to receive orders from customers.</p>
+            <div className="order-mode-grid">
+              
+              <button
+                type="button"
+                id="order-mode-whatsapp"
+                className={`order-mode-card ${orderMode === 'whatsapp' ? 'active' : ''}`}
+                onClick={() => setOrderMode('whatsapp')}
+              >
+                <div className="mode-icon-box whatsapp">
+                  <MessageCircle size={22} />
+                </div>
+                <div className="mode-text">
+                  <strong>WhatsApp Only</strong>
+                  <span>Orders open WhatsApp. Kitchen dashboard is not updated.</span>
+                </div>
+                <div className={`mode-radio ${orderMode === 'whatsapp' ? 'selected' : ''}`} />
+              </button>
+
+              <button
+                type="button"
+                id="order-mode-dashboard"
+                className={`order-mode-card ${orderMode === 'dashboard' ? 'active' : ''}`}
+                onClick={() => setOrderMode('dashboard')}
+              >
+                <div className="mode-icon-box dashboard">
+                  <Monitor size={22} />
+                </div>
+                <div className="mode-text">
+                  <strong>Live Dashboard Only</strong>
+                  <span>Orders go to your kitchen screen. WhatsApp is not opened.</span>
+                </div>
+                <div className={`mode-radio ${orderMode === 'dashboard' ? 'selected' : ''}`} />
+              </button>
+
+              <button
+                type="button"
+                id="order-mode-both"
+                className={`order-mode-card ${orderMode === 'both' ? 'active' : ''}`}
+                onClick={() => setOrderMode('both')}
+              >
+                <div className="mode-icon-box both">
+                  <Layers size={22} />
+                </div>
+                <div className="mode-text">
+                  <strong>WhatsApp + Dashboard</strong>
+                  <span>Both happen simultaneously. Recommended for most restaurants.</span>
+                </div>
+                <div className={`mode-radio ${orderMode === 'both' ? 'selected' : ''}`} />
+              </button>
+
+            </div>
           </div>
 
           <div className="form-group">
@@ -371,6 +431,98 @@ export default function Settings() {
           position: absolute;
           left: 14px;
           color: var(--text-dark-muted);
+        }
+
+        /* Order Mode Selector */
+        .order-mode-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+
+        .order-mode-card {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 14px 16px;
+          border-radius: var(--radius-md);
+          border: 1.5px solid var(--border-dark);
+          background: rgba(255,255,255,0.03);
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.2s ease;
+          width: 100%;
+          color: var(--text-dark-primary);
+        }
+
+        .order-mode-card:hover {
+          border-color: rgba(255, 78, 0, 0.4);
+          background: rgba(255, 78, 0, 0.04);
+        }
+
+        .order-mode-card.active {
+          border-color: var(--primary);
+          background: rgba(255, 78, 0, 0.08);
+          box-shadow: 0 0 0 1px rgba(255, 78, 0, 0.2);
+        }
+
+        .mode-icon-box {
+          width: 42px;
+          height: 42px;
+          border-radius: 10px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .mode-icon-box.whatsapp {
+          background: rgba(37, 211, 102, 0.12);
+          color: #25D366;
+        }
+
+        .mode-icon-box.dashboard {
+          background: rgba(99, 179, 237, 0.12);
+          color: #63B3ED;
+        }
+
+        .mode-icon-box.both {
+          background: rgba(255, 78, 0, 0.12);
+          color: var(--primary);
+        }
+
+        .mode-text {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        .mode-text strong {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-dark-primary);
+        }
+
+        .mode-text span {
+          font-size: 11px;
+          color: var(--text-dark-muted);
+          line-height: 1.4;
+        }
+
+        .mode-radio {
+          width: 16px;
+          height: 16px;
+          border-radius: 50%;
+          border: 2px solid var(--border-dark);
+          flex-shrink: 0;
+          transition: all 0.2s ease;
+        }
+
+        .mode-radio.selected {
+          border-color: var(--primary);
+          background: var(--primary);
+          box-shadow: 0 0 0 3px rgba(255, 78, 0, 0.2);
         }
       `}</style>
     </div>
