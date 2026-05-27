@@ -280,12 +280,17 @@ router.put('/profile', requireAuth, async (req, res) => {
       .select()
       .single();
 
-    // If update fails due to missing columns (e.g. established_year or tagline), try updating without them
-    if (result.error && result.error.message && (result.error.message.includes('established_year') || result.error.message.includes('tagline'))) {
-      console.warn('DB columns established_year or tagline do not exist. Retrying profile update without them.');
+    // If update fails due to missing columns, retry without the unknown columns
+    if (result.error && result.error.message && (
+      result.error.message.includes('established_year') ||
+      result.error.message.includes('tagline') ||
+      result.error.message.includes('order_mode')
+    )) {
+      console.warn('DB column missing. Retrying profile update without optional columns:', result.error.message);
       const safeUpdates = { ...updates };
       delete safeUpdates.established_year;
       delete safeUpdates.tagline;
+      delete safeUpdates.order_mode;
       
       result = await supabase
         .from('profiles')
@@ -299,7 +304,14 @@ router.put('/profile', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Failed to update profile: ' + result.error.message });
     }
 
-    res.json(result.data);
+    // If order_mode was in the original updates but got stripped (column missing),
+    // merge it back into the response so the frontend still reflects the selection.
+    const responseData = { ...result.data };
+    if (updates.order_mode !== undefined && responseData.order_mode === undefined) {
+      responseData.order_mode = updates.order_mode;
+    }
+
+    res.json(responseData);
   } catch (err) {
     console.error('Update profile error:', err);
     res.status(500).json({ error: 'Server error updating profile' });

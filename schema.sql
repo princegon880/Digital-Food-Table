@@ -16,6 +16,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- MIGRATION: Add order_mode column to existing profiles tables
+-- (Safe to run even if column already exists)
+ALTER TABLE public.profiles 
+  ADD COLUMN IF NOT EXISTS order_mode TEXT DEFAULT 'both' 
+  CHECK (order_mode IN ('whatsapp', 'dashboard', 'both'));
+
 -- Enable RLS for Profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 
