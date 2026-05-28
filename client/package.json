@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@clerk/clerk-react": "^5.61.7",
+    "canvas-confetti": "^1.9.4",
     "food-saas-root": "file:..",
     "lucide-react": "^0.363.0",
     "qrcode": "^1.5.3",

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { api, resolveImageUrl } from '../utils/api';
+import confetti from 'canvas-confetti';
 import { 
   ShoppingBag, 
   Search, 
@@ -237,6 +238,29 @@ export default function CustomerMenu() {
       setSpecialInstructions('');
       setCartOpen(false);
       setOrderPlaced(true);
+
+      // 🎉 Confetti celebration — dual burst from both sides in brand colors
+      setTimeout(() => {
+        const brandColors = ['#FF5E00', '#FFB300', '#ffffff', '#ec008c', '#FF3D00'];
+        confetti({
+          particleCount: 70,
+          angle: 60,
+          spread: 65,
+          origin: { x: 0, y: 0.7 },
+          colors: brandColors,
+          gravity: 0.9,
+          scalar: 1.1
+        });
+        confetti({
+          particleCount: 70,
+          angle: 120,
+          spread: 65,
+          origin: { x: 1, y: 0.7 },
+          colors: brandColors,
+          gravity: 0.9,
+          scalar: 1.1
+        });
+      }, 200);
 
       // Conditionally open WhatsApp
       if (sendWhatsApp) {
