@@ -101,6 +101,13 @@ export default function CustomerMenu() {
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderDetails, setPlacedOrderDetails] = useState(null);
 
+  // Rating states
+  const [customerRating, setCustomerRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [ratingFeedback, setRatingFeedback] = useState('');
+  const [ratingSubmitted, setRatingSubmitted] = useState(false);
+  const [ratingSubmitting, setRatingSubmitting] = useState(false);
+
   useEffect(() => {
     async function loadMenu() {
       try {
@@ -255,6 +262,24 @@ export default function CustomerMenu() {
 
     } catch (err) {
       alert('Order placement failed: ' + err.message);
+    }
+  };
+
+  // Submit customer star rating (non-blocking, fire-and-forget)
+  const handleRatingSubmit = async (stars, feedback = '') => {
+    setRatingSubmitting(true);
+    try {
+      await api.post('/ratings', {
+        restaurantSlug: slug,
+        tableNumber,
+        rating: stars,
+        feedback: feedback.trim()
+      });
+    } catch (err) {
+      console.warn('Rating submission failed (non-blocking):', err.message);
+    } finally {
+      setRatingSubmitting(false);
+      setRatingSubmitted(true);
     }
   };
 
@@ -494,7 +519,85 @@ export default function CustomerMenu() {
               </div>
             </div>
 
-            <button className="btn-primary como-order-more-btn" onClick={() => setOrderPlaced(false)}>
+            {/* ⭐ Customer Rating Widget */}
+            <div className="como-rating-section">
+              {!ratingSubmitted ? (
+                <>
+                  <p className="rating-prompt">How was your ordering experience?</p>
+                  <div className="star-row">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button
+                        key={star}
+                        className="star-btn"
+                        onMouseEnter={() => setHoverRating(star)}
+                        onMouseLeave={() => setHoverRating(0)}
+                        onClick={() => {
+                          setCustomerRating(star);
+                          if (star >= 4) {
+                            handleRatingSubmit(star);
+                          }
+                        }}
+                      >
+                        <Star
+                          size={30}
+                          fill={(hoverRating || customerRating) >= star ? '#FFB300' : 'none'}
+                          color={(hoverRating || customerRating) >= star ? '#FFB300' : 'rgba(255,255,255,0.2)'}
+                          strokeWidth={1.5}
+                        />
+                      </button>
+                    ))}
+                  </div>
+
+                  {customerRating > 0 && customerRating <= 3 && (
+                    <div className="rating-feedback-area">
+                      <p className="rating-feedback-label">Sorry about that! Tell us what went wrong:</p>
+                      <textarea
+                        className="como-form-input textarea"
+                        rows="2"
+                        placeholder="e.g. Slow response, confusing menu, wrong item..."
+                        value={ratingFeedback}
+                        onChange={e => setRatingFeedback(e.target.value)}
+                      />
+                      <button
+                        className="rating-submit-btn"
+                        onClick={() => handleRatingSubmit(customerRating, ratingFeedback)}
+                        disabled={ratingSubmitting}
+                      >
+                        {ratingSubmitting ? 'Submitting...' : 'Send Feedback'}
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="rating-thank-you">
+                  {customerRating >= 4 ? (
+                    <>
+                      <p className="rating-thanks-msg">🎉 Thank you! So glad you loved it!</p>
+                      <button
+                        className="rating-share-btn"
+                        onClick={() => {
+                          const shareText = `Just ordered at *${restaurant.restaurant_name}* using their digital menu — super easy! 🍽️\n\nCheck it out: ${window.location.origin}/menu/${slug}`;
+                          window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+                        }}
+                      >
+                        <span>📱</span>
+                        <span>Share with friends via WhatsApp</span>
+                      </button>
+                    </>
+                  ) : (
+                    <p className="rating-thanks-msg">💙 Thanks for the feedback! We'll improve.</p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <button className="btn-primary como-order-more-btn" onClick={() => {
+              setOrderPlaced(false);
+              setCustomerRating(0);
+              setHoverRating(0);
+              setRatingFeedback('');
+              setRatingSubmitted(false);
+            }}>
               Order More Dishes
             </button>
           </div>
@@ -2038,6 +2141,125 @@ export default function CustomerMenu() {
           .qty-counter.absolute-control {
             width: 75px;
           }
+        }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━
+           STAR RATING WIDGET
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        .como-rating-section {
+          border-top: 1px dashed rgba(255,255,255,0.08);
+          padding-top: 22px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 14px;
+          margin-top: 4px;
+          width: 100%;
+        }
+
+        .rating-prompt {
+          font-size: 14px;
+          color: rgba(255,255,255,0.55);
+          font-weight: 500;
+          text-align: center;
+          letter-spacing: 0.01em;
+        }
+
+        .star-row {
+          display: flex;
+          gap: 4px;
+        }
+
+        .star-btn {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 6px;
+          border-radius: 50%;
+          transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .star-btn:hover {
+          transform: scale(1.3);
+        }
+
+        .star-btn:active {
+          transform: scale(0.95);
+        }
+
+        .rating-feedback-area {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          animation: fadeSlideUp 0.25s ease;
+        }
+
+        @keyframes fadeSlideUp {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        .rating-feedback-label {
+          font-size: 12px;
+          color: rgba(255,255,255,0.45);
+          text-align: left;
+        }
+
+        .rating-submit-btn {
+          background: linear-gradient(90deg, #ff4e00 0%, #ec008c 100%);
+          color: white;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: opacity 0.2s;
+        }
+
+        .rating-submit-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .rating-thank-you {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          animation: fadeSlideUp 0.3s ease;
+        }
+
+        .rating-thanks-msg {
+          font-size: 14px;
+          color: rgba(255,255,255,0.7);
+          font-weight: 500;
+          text-align: center;
+        }
+
+        .rating-share-btn {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: #25D366;
+          color: white;
+          border: none;
+          padding: 11px 22px;
+          border-radius: 10px;
+          font-size: 13px;
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
+        }
+
+        .rating-share-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4);
         }
       `}</style>
     </div>

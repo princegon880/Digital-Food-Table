@@ -46,7 +46,7 @@ function matchFilter(row, filter) {
 function readDb() {
   try {
     if (!fs.existsSync(dbPath)) {
-      fs.writeFileSync(dbPath, JSON.stringify({ users: [], profiles: [], categories: [], menu_items: [], orders: [] }, null, 2), 'utf8');
+      fs.writeFileSync(dbPath, JSON.stringify({ users: [], profiles: [], categories: [], menu_items: [], orders: [], ratings: [] }, null, 2), 'utf8');
     }
     const data = fs.readFileSync(dbPath, 'utf8');
     return JSON.parse(data);
@@ -57,7 +57,8 @@ function readDb() {
       profiles: [],
       categories: [],
       menu_items: [],
-      orders: []
+      orders: [],
+      ratings: []
     };
   }
 }

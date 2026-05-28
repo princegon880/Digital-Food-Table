@@ -50,6 +50,7 @@ app.use('/api/auth', require('./routes/auth'));
 app.use('/api/categories', require('./routes/categories'));
 app.use('/api/items', require('./routes/items'));
 app.use('/api/orders', require('./routes/orders'));
+app.use('/api/ratings', require('./routes/ratings'));
 app.use('/api/public/menu', require('./routes/menu'));
 
 // Diagnostics and Health check endpoint

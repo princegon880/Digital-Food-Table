@@ -100,3 +100,29 @@ DROP POLICY IF EXISTS "Allow public to read orders for order status checks" ON p
 CREATE POLICY "Allow public to read orders for order status checks" 
   ON public.orders FOR SELECT 
   USING (true);
+
+
+-- 5. RATINGS (Customer Feedback)
+CREATE TABLE IF NOT EXISTS public.ratings (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  restaurant_id TEXT NOT NULL,
+  table_number TEXT,
+  rating INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  feedback TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Migration: Add ratings table for existing databases (safe to re-run)
+ALTER TABLE public.ratings ENABLE ROW LEVEL SECURITY;
+
+-- Ratings Policies
+DROP POLICY IF EXISTS "Allow public to insert ratings" ON public.ratings;
+CREATE POLICY "Allow public to insert ratings"
+  ON public.ratings FOR INSERT
+  WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow authenticated to read own ratings" ON public.ratings;
+CREATE POLICY "Allow authenticated to read own ratings"
+  ON public.ratings FOR SELECT
+  USING (true);
+
