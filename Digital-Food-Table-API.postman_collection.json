@@ -1,0 +1,760 @@
+{
+  "info": {
+    "_postman_id": "81c7138f-c883-41d6-aafd-8aa64b4bc229",
+    "name": "Digital Food Table API",
+    "description": "Postman Collection for testing the QR Menu SaaS Platform APIs (Digital Food Table). Includes authentication routes, categories, menu items, order submissions, ratings, and public menu retrieval.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Diagnostics & Utilities",
+      "item": [
+        {
+          "name": "Test Database connection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/test-db",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "test-db"
+              ]
+            },
+            "description": "Checks whether the database is connected to the official online Supabase project or running in local offline db.json mode, and runs test queries on profiles, categories, and menu items."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Server IP Address",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/server-ip",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "server-ip"
+              ]
+            },
+            "description": "Retrieves the server's network local IP address, useful for connecting mobile apps and client frontends on the same network."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication & Profile (Private)",
+      "item": [
+        {
+          "name": "Sync Clerk Profile",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantName\": \"Cafe Aroma\",\n  \"email\": \"cafe.aroma@example.com\",\n  \"phoneNumber\": \"9409928290\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/sync-profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "sync-profile"
+              ]
+            },
+            "description": "Syncs the authenticated Clerk user details with the database profiles table. Creates a profile if it doesn't exist, generates a slug, and links the ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Current User Details (Me)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/auth/me",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Fetches the current user profile metadata. Incorporates a self-healing fallback that automatically creates a default profile if the authenticated user doesn't have one."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Restaurant Profile Settings",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantName\": \"Cafe Aroma Premium\",\n  \"phoneNumber\": \"9409928290\",\n  \"currency\": \"₹\",\n  \"tagline\": \"Taste the premium aroma\",\n  \"establishedYear\": \"2018\",\n  \"orderMode\": \"both\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "profile"
+              ]
+            },
+            "description": "Updates restaurant settings such as restaurant name, phone number, currency, cover image, established year, tagline, slug, or order mode."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categories (Private)",
+      "item": [
+        {
+          "name": "Get All Categories",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            },
+            "description": "Gets all categories registered for the authenticated restaurant, sorted by order ascending."
+          },
+          "response": []
+        },
+        {
+          "name": "Create a Category",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Desserts\",\n  \"icon\": \"🍰\",\n  \"order\": 2\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/categories",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            },
+            "description": "Creates a new category for the authenticated restaurant."
+          },
+          "response": []
+        },
+        {
+          "name": "Update a Category",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Desserts\",\n  \"icon\": \"🧁\",\n  \"order\": 3\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}"
+              ]
+            },
+            "description": "Updates details of a category. Requires the user to be the owner of the category."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete a Category",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/categories/{{category_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{category_id}}"
+              ]
+            },
+            "description": "Deletes a category. Requires ownership check."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Menu Items (Private)",
+      "item": [
+        {
+          "name": "Get All Menu Items",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/items",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "items"
+              ]
+            },
+            "description": "Fetches all menu items for the authenticated restaurant with their category relationships joined."
+          },
+          "response": []
+        },
+        {
+          "name": "Create a Menu Item",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": \"{{category_id}}\",\n  \"name\": \"Choco Lava Cake\",\n  \"price\": 120,\n  \"description\": \"Molten warm chocolate core lava cake\",\n  \"imageUrl\": \"\",\n  \"isVeg\": true,\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/items",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "items"
+              ]
+            },
+            "description": "Creates a new menu item under an existing category owned by the restaurant."
+          },
+          "response": []
+        },
+        {
+          "name": "Update a Menu Item",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 130,\n  \"isAvailable\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/items/{{item_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "items",
+                "{{item_id}}"
+              ]
+            },
+            "description": "Updates details of a menu item. Validates ownership."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete a Menu Item",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/items/{{item_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "items",
+                "{{item_id}}"
+              ]
+            },
+            "description": "Deletes a menu item. Validates ownership."
+          },
+          "response": []
+        },
+        {
+          "name": "Upload Menu Item Image",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/items/upload",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "items",
+                "upload"
+              ]
+            },
+            "description": "Uploads an image file to Supabase storage bucket (online mode) or saves it locally in the `uploads` folder (local/offline mode)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Get All Orders (Private)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Fetches all customer orders for the authenticated restaurant, sorted by creation date descending."
+          },
+          "response": []
+        },
+        {
+          "name": "Submit Order (Public)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantSlug\": \"{{restaurant_slug}}\",\n  \"tableNumber\": \"5\",\n  \"items\": [\n    {\n      \"id\": \"{{item_id}}\",\n      \"name\": \"extra cheese pizza\",\n      \"price\": 120,\n      \"quantity\": 2\n    }\n  ],\n  \"totalPrice\": 240\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Submits a new order or appends items to an existing active unpaid order for a specific table at the restaurant (determined by slug)."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order Status (Private)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Preparing\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/status",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order_id}}",
+                "status"
+              ]
+            },
+            "description": "Updates the preparation status of an order. Valid values: Pending, Preparing, Completed, Cancelled."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Order Payment (Private)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"paymentStatus\": \"Paid\",\n  \"paymentMethod\": \"UPI\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/payment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order_id}}",
+                "payment"
+              ]
+            },
+            "description": "Updates payment status (Unpaid/Paid) and payment method (Cash, UPI, Card, null)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Ratings",
+      "item": [
+        {
+          "name": "Submit Feedback/Rating (Public)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"restaurantSlug\": \"{{restaurant_slug}}\",\n  \"tableNumber\": \"5\",\n  \"rating\": 5,\n  \"feedback\": \"Delicious pizza! Quick service.\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/ratings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "ratings"
+              ]
+            },
+            "description": "Submits a review and score (1 to 5) from a customer table to the restaurant."
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Ratings (Private)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{auth_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/ratings",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "ratings"
+              ]
+            },
+            "description": "Fetches all ratings and reviews received by the authenticated restaurant, sorted by newest first."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Public Menu (Public)",
+      "item": [
+        {
+          "name": "Fetch Public Menu by Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/public/menu/{{restaurant_slug}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "public",
+                "menu",
+                "{{restaurant_slug}}"
+              ]
+            },
+            "description": "Fetches a restaurant's public profile, menu categories, and active/available menu items based on the URL slug."
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "mock-token-utf43oryp-mpdswm6v",
+      "type": "string"
+    },
+    {
+      "key": "restaurant_slug",
+      "value": "cafe-aroma",
+      "type": "string"
+    },
+    {
+      "key": "category_id",
+      "value": "mock-uuid-51sh5wn16-mpdt7bhq",
+      "type": "string"
+    },
+    {
+      "key": "item_id",
+      "value": "mock-uuid-7zgst0f45-mpdt7wj0",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "mock-uuid-2nzak3kge-mpdt07sy",
+      "type": "string"
+    }
+  ]
+}
