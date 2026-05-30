@@ -61,29 +61,41 @@ const getSpiceLevel = (item) => {
 
 // Standard Web Haptic/Vibration Feedback helper
 const triggerHaptic = (type = 'light') => {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined' || !navigator.vibrate) return;
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
+  
+  // Log to console so developer can verify trigger in console
+  console.log(`[Haptic API] triggerHaptic called with type: "${type}"`);
+  
+  if (!navigator.vibrate) {
+    console.warn('[Haptic API] navigator.vibrate is NOT supported on this browser/OS (e.g., iOS Safari).');
+    return;
+  }
+  
   try {
+    let pattern;
     switch (type) {
       case 'light':
-        navigator.vibrate(12);
+        pattern = 40; // Increased from 12ms to 40ms so Android ERM motors have time to spin up
         break;
       case 'medium':
-        navigator.vibrate(25);
+        pattern = 85; // Increased from 25ms to 85ms
         break;
       case 'double':
-        navigator.vibrate([15, 30, 15]);
+        pattern = [40, 60, 40];
         break;
       case 'success':
-        navigator.vibrate([30, 60, 30]);
+        pattern = [80, 80, 80];
         break;
       case 'error':
-        navigator.vibrate([60, 60, 60]);
+        pattern = [120, 80, 120];
         break;
       default:
-        navigator.vibrate(12);
+        pattern = 40;
     }
+    const success = navigator.vibrate(pattern);
+    console.log(`[Haptic API] navigator.vibrate(${JSON.stringify(pattern)}) returned: ${success}`);
   } catch (err) {
-    // Suppress vibration API restrictions on standard browsers
+    console.error('[Haptic API] Failed to execute navigator.vibrate:', err);
   }
 };
 
