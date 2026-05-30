@@ -59,6 +59,34 @@ const getSpiceLevel = (item) => {
   return 0;
 };
 
+// Standard Web Haptic/Vibration Feedback helper
+const triggerHaptic = (type = 'light') => {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined' || !navigator.vibrate) return;
+  try {
+    switch (type) {
+      case 'light':
+        navigator.vibrate(12);
+        break;
+      case 'medium':
+        navigator.vibrate(25);
+        break;
+      case 'double':
+        navigator.vibrate([15, 30, 15]);
+        break;
+      case 'success':
+        navigator.vibrate([30, 60, 30]);
+        break;
+      case 'error':
+        navigator.vibrate([60, 60, 60]);
+        break;
+      default:
+        navigator.vibrate(12);
+    }
+  } catch (err) {
+    // Suppress vibration API restrictions on standard browsers
+  }
+};
+
 export default function CustomerMenu() {
   const { slug } = useParams();
   const [searchParams] = useSearchParams();
@@ -156,6 +184,9 @@ export default function CustomerMenu() {
     const val = tableModalInput.trim();
     if (val) {
       setTableNumber(val);
+      triggerHaptic('success');
+    } else {
+      triggerHaptic('error');
     }
     // Close with animation
     setTableModalVisible(false);
@@ -163,12 +194,14 @@ export default function CustomerMenu() {
   };
 
   const skipTableModal = () => {
+    triggerHaptic('light');
     setTableModalVisible(false);
     setTimeout(() => setTableModalOpen(false), 280);
   };
 
   // ── Cart operations ────────────────────────────────────────────────────────
   const addToCart = useCallback((item) => {
+    triggerHaptic('light');
     setCart(prevCart => {
       const existing = prevCart[item.id];
       return {
@@ -197,6 +230,7 @@ export default function CustomerMenu() {
   }, []);
 
   const removeFromCart = useCallback((item) => {
+    triggerHaptic('light');
     setCart(prevCart => {
       const existing = prevCart[item.id];
       if (!existing) return prevCart;
@@ -216,6 +250,7 @@ export default function CustomerMenu() {
   // Place Order Handler
   const handlePlaceOrder = async () => {
     if (!tableNumber) {
+      triggerHaptic('error');
       // Instead of alert, open the table modal nicely
       setTableModalInput('');
       setTableModalOpen(true);
@@ -227,6 +262,7 @@ export default function CustomerMenu() {
     const cartItemsList = Object.values(cart);
     if (cartItemsList.length === 0) return;
 
+    triggerHaptic('success');
     const total = getCartTotal();
     const mode = restaurant.order_mode || 'both';
     const sendWhatsApp = mode === 'whatsapp' || mode === 'both';
@@ -275,6 +311,7 @@ export default function CustomerMenu() {
         }).catch(err => console.warn('Live Kitchen save failed:', err.message));
       }
     } catch (err) {
+      triggerHaptic('error');
       alert('Order placement failed: ' + err.message);
     }
   };
@@ -450,14 +487,14 @@ export default function CustomerMenu() {
             {!tableNumber && (
               <button
                 className="como-badge table-tag-btn"
-                onClick={() => { setTableModalInput(''); setTableModalOpen(true); requestAnimationFrame(() => setTableModalVisible(true)); }}
+                onClick={() => { triggerHaptic('light'); setTableModalInput(''); setTableModalOpen(true); requestAnimationFrame(() => setTableModalVisible(true)); }}
               >
                 📍 Set Table Number
               </button>
             )}
           </div>
 
-          <button className="como-hero-cta" onClick={scrollToCatalog}>
+          <button className="como-hero-cta" onClick={() => { triggerHaptic('medium'); scrollToCatalog(); }}>
             <span>Order Now</span>
             <ArrowRight size={16} />
           </button>
@@ -527,6 +564,7 @@ export default function CustomerMenu() {
                         onMouseEnter={() => setHoverRating(star)}
                         onMouseLeave={() => setHoverRating(0)}
                         onClick={() => {
+                          triggerHaptic('light');
                           setCustomerRating(star);
                           if (star >= 4) handleRatingSubmit(star);
                         }}
@@ -553,7 +591,10 @@ export default function CustomerMenu() {
                       />
                       <button
                         className="rating-submit-btn"
-                        onClick={() => handleRatingSubmit(customerRating, ratingFeedback)}
+                        onClick={() => {
+                          triggerHaptic('success');
+                          handleRatingSubmit(customerRating, ratingFeedback);
+                        }}
                         disabled={ratingSubmitting}
                       >
                         {ratingSubmitting ? 'Submitting...' : 'Send Feedback'}
@@ -569,6 +610,7 @@ export default function CustomerMenu() {
                       <button
                         className="rating-share-btn"
                         onClick={() => {
+                          triggerHaptic('medium');
                           const shareText = `Just ordered at *${restaurant.restaurant_name}* using their digital menu — super easy! 🍽️\n\nCheck it out: ${window.location.origin}/menu/${slug}`;
                           window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
                         }}
@@ -585,6 +627,7 @@ export default function CustomerMenu() {
             </div>
 
             <button className="btn-primary como-order-more-btn" onClick={() => {
+              triggerHaptic('medium');
               setOrderPlaced(false);
               setCustomerRating(0);
               setHoverRating(0);
@@ -669,14 +712,14 @@ export default function CustomerMenu() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                     {searchQuery && (
-                      <X size={16} className="clear-icon" onClick={() => setSearchQuery('')} />
+                      <X size={16} className="clear-icon" onClick={() => { triggerHaptic('light'); setSearchQuery(''); }} />
                     )}
                   </div>
                   
                   {/* Cart Header Quick Button */}
                   <button
                     className={`como-quick-cart ${cartBump ? 'bump' : ''}`}
-                    onClick={() => setCartOpen(true)}
+                    onClick={() => { triggerHaptic('medium'); setCartOpen(true); }}
                     title="View Cart"
                   >
                     <ShoppingBag size={20} />
@@ -688,7 +731,7 @@ export default function CustomerMenu() {
                 <div className="como-diet-filters">
                   <button 
                     className={`como-diet-btn veg ${vegOnly ? 'active' : ''}`}
-                    onClick={() => { setVegOnly(!vegOnly); setNonVegOnly(false); }}
+                    onClick={() => { triggerHaptic('light'); setVegOnly(!vegOnly); setNonVegOnly(false); }}
                   >
                     <span className="dot-indicator green"></span>
                     <span>Veg Only</span>
@@ -696,7 +739,7 @@ export default function CustomerMenu() {
                   
                   <button 
                     className={`como-diet-btn nonveg ${nonVegOnly ? 'active' : ''}`}
-                    onClick={() => { setNonVegOnly(!nonVegOnly); setVegOnly(false); }}
+                    onClick={() => { triggerHaptic('light'); setNonVegOnly(!nonVegOnly); setVegOnly(false); }}
                   >
                     <span className="dot-indicator red"></span>
                     <span>Non-Veg Only</span>
@@ -707,7 +750,7 @@ export default function CustomerMenu() {
                 <div className="como-category-nav">
                   <button 
                     className={`como-cat-pill ${selectedCatId === 'all' ? 'active' : ''}`}
-                    onClick={() => setSelectedCatId('all')}
+                    onClick={() => { triggerHaptic('light'); setSelectedCatId('all'); }}
                   >
                     🍽️ All Dishes
                   </button>
@@ -715,7 +758,7 @@ export default function CustomerMenu() {
                     <button 
                       key={c.id}
                       className={`como-cat-pill ${selectedCatId === c.id ? 'active' : ''}`}
-                      onClick={() => setSelectedCatId(c.id)}
+                      onClick={() => { triggerHaptic('light'); setSelectedCatId(c.id); }}
                     >
                       <span className="cat-icon">{c.icon || '🍽️'}</span>
                       <span>{c.name}</span>
@@ -804,7 +847,7 @@ export default function CustomerMenu() {
       {getCartCount() > 0 && !cartOpen && !orderPlaced && (
         <div
           className={`como-sticky-cart-bar ${cartBump ? 'bump' : ''}`}
-          onClick={() => setCartOpen(true)}
+          onClick={() => { triggerHaptic('medium'); setCartOpen(true); }}
         >
           <div className="cart-bar-left">
             <div className="cart-count-badge">
@@ -825,39 +868,49 @@ export default function CustomerMenu() {
 
       {/* 6. Checkout Drawer Panel */}
       {cartOpen && (
-        <div className="como-drawer-overlay" onClick={() => setCartOpen(false)}>
-          <div className="como-drawer animated" onClick={(e) => e.stopPropagation()}>
-            
+        <div className="como-drawer-overlay" onClick={() => { triggerHaptic('light'); setCartOpen(false); }}>
+          <div className="como-drawer" onClick={(e) => e.stopPropagation()}>
+
+            {/* Drag pill */}
+            <div className="drawer-drag-pill" />
+
             <div className="como-drawer-header">
               <div className="header-title-box">
                 <ShoppingBag size={20} className="text-orange" />
                 <h3>Your Basket</h3>
+                {getCartCount() > 0 && (
+                  <span className="drawer-item-count-pill">{getCartCount()} {getCartCount() === 1 ? 'item' : 'items'}</span>
+                )}
               </div>
-              <button className="close-drawer-btn" onClick={() => setCartOpen(false)}>
-                <X size={20} />
+              <button className="close-drawer-btn" onClick={() => { triggerHaptic('light'); setCartOpen(false); }}>
+                <X size={22} />
               </button>
             </div>
 
             <div className="como-drawer-body">
-              {/* Table setup */}
+
+              {/* ── Table Number ────────────────────────── */}
               <div className="como-input-group">
-                <label className="input-label">📍 Confirm Table Number</label>
-                <input 
-                  type="text" 
-                  className={`como-form-input ${!tableNumber ? 'input-required-highlight' : ''}`}
-                  placeholder="Enter Table Number (required)"
-                  value={tableNumber}
-                  onChange={(e) => setTableNumber(e.target.value)}
-                  required
-                />
-                {!tableNumber && (
-                  <span className="input-hint">⚠️ Please enter your table number to place an order</span>
-                )}
+                <label className="input-label">📍 Table Number</label>
+                <div className="table-input-row">
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    className={`como-form-input table-num-input ${!tableNumber ? 'input-required-highlight' : 'input-has-value'}`}
+                    placeholder="e.g. 5"
+                    value={tableNumber}
+                    onChange={(e) => setTableNumber(e.target.value)}
+                  />
+                  {tableNumber
+                    ? <span className="table-confirmed-tag">✓ Table {tableNumber}</span>
+                    : <span className="input-hint">Required to place order</span>
+                  }
+                </div>
               </div>
 
-              {/* Items List */}
+              {/* ── Order Items ─────────────────────────── */}
               <div className="como-drawer-items-container">
-                <h4 className="container-title">Order Items</h4>
+                <h4 className="container-title">Order Summary</h4>
                 {Object.values(cart).length === 0 ? (
                   <p className="empty-cart-text">Your cart is empty.</p>
                 ) : (
@@ -865,51 +918,67 @@ export default function CustomerMenu() {
                     <div key={item.id} className="como-drawer-item-row">
                       <div className="item-info">
                         <h5>{item.name}</h5>
-                        <span className="price">{currencySymbol}{item.price}</span>
+                        <div className="item-price-row">
+                          <span className="unit-price">{currencySymbol}{item.price} × {item.quantity}</span>
+                          <span className="line-total">{currencySymbol}{item.price * item.quantity}</span>
+                        </div>
                       </div>
-
-                      <div className="qty-counter drawer-qty-scale">
-                        <button onClick={() => removeFromCart(item)}><Minus size={10} /></button>
-                        <span>{item.quantity}</span>
-                        <button onClick={() => addToCart(item)}><Plus size={10} /></button>
+                      <div className="drawer-qty-ctrl">
+                        <button
+                          className="drawer-qty-btn"
+                          onClick={() => removeFromCart(item)}
+                          aria-label="Remove one"
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <span className="drawer-qty-num">{item.quantity}</span>
+                        <button
+                          className="drawer-qty-btn"
+                          onClick={() => addToCart(item)}
+                          aria-label="Add one more"
+                        >
+                          <Plus size={14} />
+                        </button>
                       </div>
                     </div>
                   ))
                 )}
               </div>
 
-              {/* Special Cooking Instructions */}
-              <div className="como-input-group extra-top">
-                <label className="input-label">📝 Chef Instructions</label>
-                <textarea 
+              {/* ── Chef Instructions ───────────────────── */}
+              <div className="como-input-group">
+                <label className="input-label">📝 Chef Instructions (optional)</label>
+                <textarea
                   className="como-form-input textarea"
                   rows="2"
-                  placeholder="e.g. Make it extra hot, no garlic, double cheese..."
+                  placeholder="e.g. No onions, extra spicy, less oil..."
                   value={specialInstructions}
                   onChange={(e) => setSpecialInstructions(e.target.value)}
                 />
               </div>
 
-              {/* Price summary */}
+              {/* ── Price Breakdown ─────────────────────── */}
               <div className="como-price-breakdown">
                 <div className="breakdown-row">
-                  <span>Subtotal</span>
+                  <span>Subtotal ({getCartCount()} {getCartCount() === 1 ? 'item' : 'items'})</span>
                   <span>{currencySymbol}{getCartTotal()}</span>
                 </div>
                 <div className="breakdown-row">
                   <span>Tax & Service</span>
-                  <span className="free-tag">Free Dine-In</span>
+                  <span className="free-tag">Free • Dine-In</span>
                 </div>
                 <div className="breakdown-row grand-total">
                   <span>Grand Total</span>
                   <span className="amount-glowing">{currencySymbol}{getCartTotal()}</span>
                 </div>
               </div>
+
             </div>
 
+            {/* ── Sticky Place Order Footer ─────────────── */}
             <div className="como-drawer-footer">
-              <button 
-                className="como-checkout-btn" 
+              <button
+                className="como-checkout-btn"
                 onClick={handlePlaceOrder}
                 disabled={Object.values(cart).length === 0}
               >
@@ -922,8 +991,12 @@ export default function CustomerMenu() {
                     return 'Place Order';
                   })()}
                 </span>
+                {getCartCount() > 0 && (
+                  <span className="checkout-total-pill">{currencySymbol}{getCartTotal()}</span>
+                )}
               </button>
             </div>
+
           </div>
         </div>
       )}
@@ -1524,101 +1597,339 @@ export default function CustomerMenu() {
         .cart-label { font-size: 10px; opacity: 0.8; margin-top: 1px; }
         .cart-bar-right { display: flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 700; }
 
-        /* 6. Checkout Drawer */
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           CART DRAWER — MOBILE-FIRST FIXES
+           Fixes: body-scroll-lock, iOS touch-scroll, safe-area,
+           bigger tap targets, item subtotals, thumb-zone CTA
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+        /* Overlay — no backdrop-filter (Android WebView compat) */
         .como-drawer-overlay {
-          position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-          background: rgba(0, 0, 0, 0.7); z-index: 1000;
-          display: flex; justify-content: center; backdrop-filter: blur(4px);
+          position: fixed;
+          inset: 0;
+          background: rgba(0, 0, 0, 0.75);
+          z-index: 1000;
+          display: flex;
+          align-items: flex-end;
+          justify-content: center;
+          /* Prevent taps falling through */
+          touch-action: none;
         }
+
         .como-drawer {
-          position: fixed; bottom: 0; width: 100%; max-width: 600px;
-          background: #121216;
-          border-top: 1px solid rgba(255, 255, 255, 0.08);
-          border-top-left-radius: 24px; border-top-right-radius: 24px;
-          box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
-          display: flex; flex-direction: column; max-height: 88vh; z-index: 1010;
-          animation: slideUpDrawer 0.3s cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+          position: relative;
+          width: 100%;
+          max-width: 600px;
+          background: #141418;
+          border-top: 1px solid rgba(255, 255, 255, 0.09);
+          border-top-left-radius: 26px;
+          border-top-right-radius: 26px;
+          box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.6);
+          display: flex;
+          flex-direction: column;
+          /* KEY FIX: cap height, never cover keyboard */
+          max-height: 82dvh;
+          max-height: 82vh; /* fallback for older browsers */
+          z-index: 1010;
+          animation: slideUpDrawer 0.32s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+          /* iOS momentum scroll fix applied to body inside */
+          overflow: hidden;
         }
-        @keyframes slideUpDrawer { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        @keyframes slideUpDrawer {
+          from { transform: translateY(100%); opacity: 0.6; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+
+        /* Drag pill */
+        .drawer-drag-pill {
+          width: 36px;
+          height: 4px;
+          background: rgba(255,255,255,0.14);
+          border-radius: 9999px;
+          margin: 10px auto 0 auto;
+          flex-shrink: 0;
+        }
+
+        /* Header */
         .como-drawer-header {
-          display: flex; justify-content: space-between; align-items: center;
-          padding: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 14px 20px 14px 20px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+          flex-shrink: 0;
         }
-        .header-title-box { display: flex; align-items: center; gap: 8px; }
-        .header-title-box h3 { font-size: 18px; font-weight: 800; color: #ffffff; }
+        .header-title-box {
+          display: flex;
+          align-items: center;
+          gap: 9px;
+        }
+        .header-title-box h3 {
+          font-size: 18px;
+          font-weight: 800;
+          color: #ffffff;
+        }
+        .drawer-item-count-pill {
+          background: rgba(255, 94, 0, 0.15);
+          color: #FF5E00;
+          border: 1px solid rgba(255, 94, 0, 0.3);
+          font-size: 11px;
+          font-weight: 700;
+          padding: 2px 8px;
+          border-radius: 9999px;
+        }
         .text-orange { color: #FF5E00; }
         .close-drawer-btn {
-          border: none; background: rgba(255, 255, 255, 0.04); color: #71717A;
-          width: 34px; height: 34px; border-radius: 50%;
-          display: flex; align-items: center; justify-content: center;
-          cursor: pointer; transition: all 0.2s ease;
+          border: none;
+          background: rgba(255, 255, 255, 0.06);
+          color: #A0A0AB;
+          /* Bigger tap target */
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.18s ease;
+          flex-shrink: 0;
         }
-        .close-drawer-btn:hover { color: #ffffff; background: rgba(255, 255, 255, 0.08); }
+        .close-drawer-btn:hover,
+        .close-drawer-btn:active {
+          color: #ffffff;
+          background: rgba(255, 255, 255, 0.12);
+        }
 
+        /* Scrollable body — iOS momentum scroll */
         .como-drawer-body {
-          padding: 20px; overflow-y: auto; flex-grow: 1;
-          display: flex; flex-direction: column; gap: 16px;
+          padding: 18px 20px 8px 20px;
+          overflow-y: auto;
+          -webkit-overflow-scrolling: touch; /* iOS Safari smooth scroll */
+          overscroll-behavior: contain;       /* prevent page scroll bleed */
+          flex-grow: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
         }
+
+        /* Table number input row */
         .como-input-group { display: flex; flex-direction: column; gap: 6px; }
-        .como-input-group.extra-top { margin-top: 12px; }
-        .input-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #A0A0AB; }
-        .input-hint { font-size: 11px; color: #FFB300; font-weight: 500; }
-        .como-form-input {
-          width: 100%; padding: 12px 14px;
-          background-color: rgba(255, 255, 255, 0.02);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 10px; color: #ffffff; font-family: inherit; font-size: 14px;
-          transition: all 0.2s ease;
+        .input-label {
+          font-size: 11px; font-weight: 700;
+          text-transform: uppercase; letter-spacing: 0.07em; color: #71717A;
         }
-        .como-form-input.input-required-highlight { border-color: rgba(255, 179, 0, 0.4); }
+        .table-input-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+        }
+        .table-num-input {
+          width: 90px !important;
+          flex-shrink: 0;
+          text-align: center;
+          font-size: 22px !important;
+          font-weight: 800 !important;
+          letter-spacing: 0.05em;
+          padding: 10px 8px !important;
+          -moz-appearance: textfield;
+        }
+        .table-num-input::-webkit-inner-spin-button,
+        .table-num-input::-webkit-outer-spin-button { -webkit-appearance: none; }
+        .table-confirmed-tag {
+          background: rgba(16, 185, 129, 0.1);
+          color: #10B981;
+          border: 1px solid rgba(16, 185, 129, 0.25);
+          border-radius: 8px;
+          font-size: 13px;
+          font-weight: 700;
+          padding: 8px 14px;
+          flex-grow: 1;
+          text-align: center;
+        }
+        .input-hint {
+          flex-grow: 1;
+          font-size: 12px;
+          color: #FFB300;
+          font-weight: 500;
+          text-align: center;
+          background: rgba(255, 179, 0, 0.06);
+          border: 1px solid rgba(255, 179, 0, 0.15);
+          border-radius: 8px;
+          padding: 8px 10px;
+        }
+
+        /* Form inputs */
+        .como-form-input {
+          width: 100%;
+          padding: 13px 14px;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          color: #ffffff;
+          font-family: inherit;
+          font-size: 15px;
+          transition: all 0.2s ease;
+          box-sizing: border-box;
+          -webkit-appearance: none; /* iOS rounded corners fix */
+        }
+        .como-form-input.input-required-highlight { border-color: rgba(255, 179, 0, 0.45); }
+        .como-form-input.input-has-value { border-color: rgba(16, 185, 129, 0.35); }
         .como-form-input:focus {
-          outline: none; border-color: #FF5E00;
-          background-color: rgba(255, 255, 255, 0.04);
-          box-shadow: 0 0 0 3px rgba(255, 94, 0, 0.15);
+          outline: none;
+          border-color: #FF5E00;
+          background: rgba(255, 255, 255, 0.05);
+          box-shadow: 0 0 0 3px rgba(255, 94, 0, 0.14);
         }
         .como-form-input.textarea { resize: none; }
 
-        .como-drawer-items-container { display: flex; flex-direction: column; gap: 12px; margin-top: 4px; }
+        /* Order items list */
+        .como-drawer-items-container {
+          display: flex; flex-direction: column; gap: 0;
+        }
         .como-drawer-items-container .container-title {
-          font-size: 12px; font-weight: 700; text-transform: uppercase;
-          letter-spacing: 0.05em; color: #A0A0AB;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-          padding-bottom: 6px; margin-bottom: 2px;
+          font-size: 11px; font-weight: 700; text-transform: uppercase;
+          letter-spacing: 0.07em; color: #71717A;
+          padding-bottom: 10px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+          margin-bottom: 4px;
         }
-        .empty-cart-text { font-size: 13px; color: #71717A; font-style: italic; }
-        .como-drawer-item-row {
-          display: flex; justify-content: space-between; align-items: center;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.04); padding-bottom: 10px;
-        }
-        .como-drawer-item-row .item-info h5 { font-size: 14px; font-weight: 600; color: #ffffff; }
-        .como-drawer-item-row .item-info .price { font-size: 12px; color: #FFB300; font-weight: 700; }
-        .drawer-qty-scale { transform: scale(0.85); transform-origin: right center; }
+        .empty-cart-text { font-size: 13px; color: #71717A; font-style: italic; padding: 12px 0; }
 
-        .como-price-breakdown {
-          border-top: 1px dashed rgba(255, 255, 255, 0.06);
-          padding-top: 14px; display: flex; flex-direction: column; gap: 8px;
+        .como-drawer-item-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 13px 0;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+          gap: 12px;
         }
-        .breakdown-row { display: flex; justify-content: space-between; font-size: 13px; color: #A0A0AB; }
+        .como-drawer-item-row:last-child { border-bottom: none; }
+        .como-drawer-item-row .item-info {
+          flex: 1;
+          min-width: 0;
+        }
+        .como-drawer-item-row .item-info h5 {
+          font-size: 14px; font-weight: 600; color: #ffffff;
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .item-price-row {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          margin-top: 3px;
+        }
+        .unit-price { font-size: 12px; color: #71717A; }
+        .line-total { font-size: 13px; font-weight: 700; color: #FFB300; }
+
+        /* ── Qty control — BIGGER, more thumb-friendly ── */
+        .drawer-qty-ctrl {
+          display: flex;
+          align-items: center;
+          background: rgba(255, 94, 0, 0.08);
+          border: 1px solid rgba(255, 94, 0, 0.25);
+          border-radius: 12px;
+          overflow: hidden;
+          flex-shrink: 0;
+        }
+        .drawer-qty-btn {
+          border: none;
+          background: none;
+          color: #FF5E00;
+          /* 44×44 WCAG touch target */
+          width: 44px;
+          height: 44px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: background 0.15s ease;
+          -webkit-tap-highlight-color: transparent;
+        }
+        .drawer-qty-btn:hover,
+        .drawer-qty-btn:active {
+          background: rgba(255, 94, 0, 0.18);
+          color: #ffffff;
+        }
+        .drawer-qty-num {
+          font-size: 15px;
+          font-weight: 800;
+          color: #ffffff;
+          min-width: 28px;
+          text-align: center;
+        }
+
+        /* Price breakdown */
+        .como-price-breakdown {
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.05);
+          border-radius: 14px;
+          padding: 14px 16px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .breakdown-row {
+          display: flex; justify-content: space-between;
+          font-size: 13px; color: #A0A0AB;
+        }
         .free-tag { color: #10B981; font-weight: 700; }
         .grand-total {
           font-size: 15px; font-weight: 800; color: #ffffff;
-          border-top: 1px solid rgba(255, 255, 255, 0.06); padding-top: 10px;
+          border-top: 1px solid rgba(255, 255, 255, 0.07);
+          padding-top: 10px;
+          margin-top: 2px;
         }
-        .amount-glowing { color: #FFB300; font-size: 18px; text-shadow: 0 0 10px rgba(255, 179, 0, 0.2); }
+        .amount-glowing {
+          color: #FFB300; font-size: 17px;
+          text-shadow: 0 0 12px rgba(255, 179, 0, 0.25);
+        }
 
-        .como-drawer-footer { padding: 20px; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+        /* ── Footer — safe-area aware ── */
+        .como-drawer-footer {
+          padding: 14px 20px;
+          /* Add iPhone home-bar gap */
+          padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+          border-top: 1px solid rgba(255, 255, 255, 0.06);
+          background: #141418;
+          flex-shrink: 0;
+        }
         .como-checkout-btn {
           width: 100%;
           background: linear-gradient(135deg, #FF6B00 0%, #FF3D00 100%);
-          color: #ffffff; border: none; padding: 15px; font-size: 15px; font-weight: 700;
-          border-radius: 12px; cursor: pointer;
-          display: flex; align-items: center; justify-content: center; gap: 8px;
-          box-shadow: 0 4px 15px rgba(255, 94, 0, 0.3); transition: all 0.2s ease;
+          color: #ffffff;
+          border: none;
+          /* Taller CTA — thumb zone */
+          padding: 16px 20px;
+          font-size: 15px;
+          font-weight: 700;
+          border-radius: 14px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 10px;
+          box-shadow: 0 6px 20px rgba(255, 94, 0, 0.35);
+          transition: all 0.2s ease;
           font-family: inherit;
+          -webkit-tap-highlight-color: transparent;
         }
-        .como-checkout-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255, 94, 0, 0.5); }
+        .como-checkout-btn:active {
+          transform: scale(0.97);
+          box-shadow: 0 3px 10px rgba(255, 94, 0, 0.25);
+        }
         .como-checkout-btn:disabled {
-          background: #27272a; color: #71717a; cursor: not-allowed; box-shadow: none; transform: none;
+          background: #27272a; color: #71717a;
+          cursor: not-allowed; box-shadow: none; transform: none;
+        }
+        .checkout-total-pill {
+          background: rgba(255,255,255,0.18);
+          padding: 4px 10px;
+          border-radius: 8px;
+          font-size: 14px;
+          font-weight: 800;
+          white-space: nowrap;
+          flex-shrink: 0;
         }
 
         /* Success Card */
