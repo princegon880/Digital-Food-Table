@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api, resolveImageUrl } from '../../utils/api';
+import { triggerHaptic } from '../../utils/haptic';
 import { Save, User, Phone, Globe, Image as ImageIcon, Upload, Check, Calendar, Link2, MessageCircle, Monitor, Layers } from 'lucide-react';
 
 export default function Settings() {
@@ -74,6 +75,7 @@ export default function Settings() {
 
     const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
     if (cleanPhone.length !== 10) {
+      triggerHaptic('error');
       setError('WhatsApp number must be exactly 10 digits.');
       setSaving(false);
       return;
@@ -106,10 +108,11 @@ export default function Settings() {
       setProfile(updatedProfile);
       setSlug(updatedProfile.slug);
       setSuccess(true);
-      
+      triggerHaptic('success');
       // Auto fade success badge
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {
+      triggerHaptic('error');
       setError(err.message || 'Failed to update settings');
     } finally {
       setSaving(false);
@@ -221,7 +224,7 @@ export default function Settings() {
                 type="button"
                 id="order-mode-whatsapp"
                 className={`order-mode-card ${orderMode === 'whatsapp' ? 'active' : ''}`}
-                onClick={() => setOrderMode('whatsapp')}
+                onClick={() => { triggerHaptic('light'); setOrderMode('whatsapp'); }}
               >
                 <div className="mode-icon-box whatsapp">
                   <MessageCircle size={22} />
@@ -237,7 +240,7 @@ export default function Settings() {
                 type="button"
                 id="order-mode-dashboard"
                 className={`order-mode-card ${orderMode === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setOrderMode('dashboard')}
+                onClick={() => { triggerHaptic('light'); setOrderMode('dashboard'); }}
               >
                 <div className="mode-icon-box dashboard">
                   <Monitor size={22} />
@@ -253,7 +256,7 @@ export default function Settings() {
                 type="button"
                 id="order-mode-both"
                 className={`order-mode-card ${orderMode === 'both' ? 'active' : ''}`}
-                onClick={() => setOrderMode('both')}
+                onClick={() => { triggerHaptic('light'); setOrderMode('both'); }}
               >
                 <div className="mode-icon-box both">
                   <Layers size={22} />

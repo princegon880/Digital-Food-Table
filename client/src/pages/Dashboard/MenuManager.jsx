@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { api, resolveImageUrl } from '../../utils/api';
 import Modal from '../../components/Modal';
+import { triggerHaptic } from '../../utils/haptic';
 import { 
   Plus, 
   Edit2, 
@@ -69,6 +70,7 @@ export default function MenuManager() {
 
   // CATEGORY OPERATIONS
   const openCategoryModal = (mode, data = null) => {
+    triggerHaptic('medium');
     if (mode === 'create') {
       setCategoryForm({ name: '', icon: '🍽️', order: categories.length });
     } else {
@@ -88,8 +90,10 @@ export default function MenuManager() {
         const updatedCat = await api.put(`/categories/${categoryModal.data.id}`, categoryForm);
         setCategories(categories.map(c => c.id === updatedCat.id ? updatedCat : c));
       }
+      triggerHaptic('success');
       setCategoryModal({ open: false, mode: 'create', data: null });
     } catch (err) {
+      triggerHaptic('error');
       alert('Error saving category: ' + err.message);
     }
   };
@@ -111,6 +115,7 @@ export default function MenuManager() {
 
   // ITEM OPERATIONS
   const openItemModal = (mode, data = null) => {
+    triggerHaptic('medium');
     setImageFile(null);
     if (mode === 'create') {
       setItemForm({
@@ -183,12 +188,15 @@ export default function MenuManager() {
         fetchData();
       }
       setItemModal({ open: false, mode: 'create', data: null });
+      triggerHaptic('success');
     } catch (err) {
+      triggerHaptic('error');
       alert('Error saving menu item: ' + err.message);
     }
   };
 
   const handleToggleAvailable = async (item) => {
+    triggerHaptic('light');
     try {
       const updated = await api.put(`/items/${item.id}`, {
         isAvailable: !item.is_available
@@ -201,6 +209,7 @@ export default function MenuManager() {
 
   const handleDeleteItem = async (id) => {
     if (!confirm('Are you sure you want to delete this dish?')) return;
+    triggerHaptic('error');
     try {
       await api.delete(`/items/${id}`);
       setItems(items.filter(i => i.id !== id));
@@ -264,20 +273,20 @@ export default function MenuManager() {
                   <div 
                     key={cat.id} 
                     className={`category-item-row ${selectedCategoryId === cat.id ? 'active' : ''}`}
-                    onClick={() => setSelectedCategoryId(cat.id)}
+                    onClick={() => { triggerHaptic('light'); setSelectedCategoryId(cat.id); }}
                   >
                     <span className="cat-icon">{cat.icon}</span>
                     <span className="cat-name">{cat.name}</span>
                     <div className="cat-actions">
                       <button 
                         className="cat-action-btn edit" 
-                        onClick={(e) => { e.stopPropagation(); openCategoryModal('edit', cat); }}
+                        onClick={(e) => { e.stopPropagation(); triggerHaptic('light'); openCategoryModal('edit', cat); }}
                       >
                         <Edit2 size={12} />
                       </button>
                       <button 
                         className="cat-action-btn delete" 
-                        onClick={(e) => { e.stopPropagation(); handleDeleteCategory(cat.id); }}
+                        onClick={(e) => { e.stopPropagation(); triggerHaptic('error'); handleDeleteCategory(cat.id); }}
                       >
                         <Trash2 size={12} />
                       </button>

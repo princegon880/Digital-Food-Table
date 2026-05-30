@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { triggerHaptic } from '../utils/haptic';
 
 export default function Modal({ isOpen, onClose, title, children }) {
   // Prevent background scrolling when open
@@ -22,7 +23,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
       <div className="glass modal-content animated" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>{title}</h3>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={() => { triggerHaptic('light'); onClose(); }}>
             <X size={18} />
           </button>
         </div>

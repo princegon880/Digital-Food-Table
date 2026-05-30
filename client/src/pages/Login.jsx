@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSignIn, useAuth } from '@clerk/clerk-react';
 import { api } from '../utils/api';
+import { triggerHaptic } from '../utils/haptic';
 import { Sparkles, Phone, Mail, Lock, AlertCircle, Loader, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -113,6 +114,7 @@ function ClerkLogin() {
       }
     } catch (err) {
       console.error('Clerk login error:', err);
+      triggerHaptic('error');
       const isAlreadySignedIn = err.errors?.some(e => e.code === 'already_signed_in') || err.message?.includes('already signed in');
       if (isAlreadySignedIn) {
         try {
@@ -159,8 +161,10 @@ function ClerkLogin() {
       });
       setView('forgot-reset');
       setTimer(30);
+      triggerHaptic('success');
     } catch (err) {
       console.error('Clerk forgot password request error:', err);
+      triggerHaptic('error');
       setError(err.errors?.[0]?.longMessage || err.message || 'Failed to send OTP code. Please try again.');
     } finally {
       setLoading(false);
@@ -223,6 +227,7 @@ function ClerkLogin() {
       }
     } catch (err) {
       console.error('Clerk reset password complete error:', err);
+      triggerHaptic('error');
       setError(err.errors?.[0]?.longMessage || err.message || 'Failed to reset password. Please verify the code.');
     } finally {
       setLoading(false);
@@ -259,6 +264,7 @@ function ClerkLogin() {
     const newOtp = [...otp];
     newOtp[index] = val.substring(val.length - 1);
     setOtp(newOtp);
+    if (val !== '') triggerHaptic('light');
 
     // Focus next input
     if (val !== '' && index < 5) {
@@ -431,10 +437,11 @@ function LocalLogin() {
       
       // Save profile locally
       localStorage.setItem('profile', JSON.stringify(data.profile));
-
+      triggerHaptic('success');
       navigate('/dashboard');
     } catch (err) {
       console.error('Local login profile fetch failed:', err);
+      triggerHaptic('error');
       setError('Restaurant profile not found. Please register first.');
       localStorage.removeItem('token');
     } finally {

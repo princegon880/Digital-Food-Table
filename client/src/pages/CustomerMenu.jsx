@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { api, resolveImageUrl } from '../utils/api';
+import { triggerHaptic } from '../utils/haptic';
 import confetti from 'canvas-confetti';
 import { 
   ShoppingBag, 
@@ -15,8 +16,151 @@ import {
   Star,
   ArrowRight,
   ChevronRight,
-  MapPin
+  MapPin,
+  Globe,
+  Check
 } from 'lucide-react';
+
+// ── Language config ────────────────────────────────────────────────────────────
+const LANGUAGES = [
+  { code: 'en', label: 'English',  flag: '🇬🇧' },
+  { code: 'hi', label: 'हिन्दी',   flag: '🇮🇳' },
+  { code: 'ta', label: 'தமிழ்',   flag: '🇮🇳' },
+  { code: 'te', label: 'తెలుగు',  flag: '🇮🇳' },
+  { code: 'mr', label: 'मराठी',   flag: '🇮🇳' },
+  { code: 'bn', label: 'বাংলা',   flag: '🇮🇳' },
+];
+
+// Static UI string translations (only things outside dish data)
+const UI_STRINGS = {
+  en: {
+    searchPlaceholder: 'Search for delicious food...',
+    allDishes: '🍽️ All Dishes',
+    vegOnly: 'Veg Only',
+    nonVegOnly: 'Non-Veg Only',
+    viewBasket: 'View Basket',
+    yourBasket: 'Your Basket',
+    placeOrder: 'Place Order',
+    tableLabel: '📍 Table Number',
+    chefsSpecials: "Chef's Specials",
+    popularChoices: 'Popular choices',
+    mustTry: 'Must Try',
+    addBtn: 'ADD',
+    orderSent: 'Order Sent!',
+    orderMoreBtn: 'Order More Dishes',
+    langLabel: 'Language',
+    qrToastTitle: "You're seated at Table",
+    qrToastSub: 'Scanned via QR Code • Tap to change',
+  },
+  hi: {
+    searchPlaceholder: 'स्वादिष्ट खाना खोजें...',
+    allDishes: '🍽️ सभी व्यंजन',
+    vegOnly: 'केवल शाकाहारी',
+    nonVegOnly: 'केवल मांसाहारी',
+    viewBasket: 'टोकरी देखें',
+    yourBasket: 'आपकी टोकरी',
+    placeOrder: 'ऑर्डर करें',
+    tableLabel: '📍 टेबल नंबर',
+    chefsSpecials: 'शेफ की विशेषताएं',
+    popularChoices: 'लोकप्रिय चुनाव',
+    mustTry: 'जरूर आजमाएं',
+    addBtn: 'जोड़ें',
+    orderSent: 'ऑर्डर भेजा!',
+    orderMoreBtn: 'और व्यंजन ऑर्डर करें',
+    langLabel: 'भाषा',
+    qrToastTitle: 'आप टेबल पर बैठे हैं',
+    qrToastSub: 'QR कोड से स्कैन • बदलने के लिए टैप करें',
+  },
+  ta: {
+    searchPlaceholder: 'சுவையான உணவு தேடுங்கள்...',
+    allDishes: '🍽️ அனைத்து உணவுகள்',
+    vegOnly: 'சைவம் மட்டும்',
+    nonVegOnly: 'அசைவம் மட்டும்',
+    viewBasket: 'கூடையை பார்க்க',
+    yourBasket: 'உங்கள் கூடை',
+    placeOrder: 'ஆர்டர் செய்',
+    tableLabel: '📍 மேஜை எண்',
+    chefsSpecials: 'சமையல்காரர் சிறப்புகள்',
+    popularChoices: 'பிரபலமான தேர்வுகள்',
+    mustTry: 'கட்டாயம் முயற்சிக்க',
+    addBtn: 'சேர்',
+    orderSent: 'ஆர்டர் அனுப்பப்பட்டது!',
+    orderMoreBtn: 'மேலும் ஆர்டர் செய்',
+    langLabel: 'மொழி',
+    qrToastTitle: 'நீங்கள் மேஜையில் அமர்ந்துள்ளீர்கள்',
+    qrToastSub: 'QR குறியீடு மூலம் ஸ்கேன் • மாற்ற தட்டவும்',
+  },
+  te: {
+    searchPlaceholder: 'రుచికరమైన వంటలు వెతకండి...',
+    allDishes: '🍽️ అన్ని వంటకాలు',
+    vegOnly: 'శాకాహారం మాత్రమే',
+    nonVegOnly: 'మాంసాహారం మాత్రమే',
+    viewBasket: 'బాస్కెట్ చూడండి',
+    yourBasket: 'మీ బాస్కెట్',
+    placeOrder: 'ఆర్డర్ చేయండి',
+    tableLabel: '📍 టేబుల్ నంబర్',
+    chefsSpecials: 'చెఫ్ స్పెషల్స్',
+    popularChoices: 'జనాదరణ పొందిన ఎంపికలు',
+    mustTry: 'తప్పనిసరిగా ప్రయత్నించండి',
+    addBtn: 'జోడించు',
+    orderSent: 'ఆర్డర్ పంపబడింది!',
+    orderMoreBtn: 'మరిన్ని వంటకాలు ఆర్డర్ చేయండి',
+    langLabel: 'భాష',
+    qrToastTitle: 'మీరు టేబుల్ వద్ద కూర్చున్నారు',
+    qrToastSub: 'QR కోడ్ ద్వారా స్కాన్ • మార్చడానికి నొక్కండి',
+  },
+  mr: {
+    searchPlaceholder: 'चविष्ट जेवण शोधा...',
+    allDishes: '🍽️ सर्व पदार्थ',
+    vegOnly: 'फक्त शाकाहारी',
+    nonVegOnly: 'फक्त मांसाहारी',
+    viewBasket: 'टोपली पहा',
+    yourBasket: 'तुमची टोपली',
+    placeOrder: 'ऑर्डर द्या',
+    tableLabel: '📍 टेबल नंबर',
+    chefsSpecials: 'शेफची विशेषता',
+    popularChoices: 'लोकप्रिय निवडी',
+    mustTry: 'नक्की वापरून पहा',
+    addBtn: 'जोडा',
+    orderSent: 'ऑर्डर पाठवला!',
+    orderMoreBtn: 'आणखी पदार्थ ऑर्डर करा',
+    langLabel: 'भाषा',
+    qrToastTitle: 'तुम्ही टेबलवर बसला आहात',
+    qrToastSub: 'QR कोड स्कॅन • बदलण्यासाठी टॅप करा',
+  },
+  bn: {
+    searchPlaceholder: 'সুস্বাদু খাবার খুঁজুন...',
+    allDishes: '🍽️ সব খাবার',
+    vegOnly: 'শুধু নিরামিষ',
+    nonVegOnly: 'শুধু আমিষ',
+    viewBasket: 'ঝুড়ি দেখুন',
+    yourBasket: 'আপনার ঝুড়ি',
+    placeOrder: 'অর্ডার করুন',
+    tableLabel: '📍 টেবিল নম্বর',
+    chefsSpecials: 'শেফের বিশেষত্ব',
+    popularChoices: 'জনপ্রিয় পছন্দ',
+    mustTry: 'অবশ্যই চেষ্টা করুন',
+    addBtn: 'যোগ করুন',
+    orderSent: 'অর্ডার পাঠানো হয়েছে!',
+    orderMoreBtn: 'আরও খাবার অর্ডার করুন',
+    langLabel: 'ভাষা',
+    qrToastTitle: 'আপনি টেবিলে বসেছেন',
+    qrToastSub: 'QR কোড স্ক্যান • পরিবর্তন করতে ট্যাপ করুন',
+  },
+};
+
+// Free Google Translate endpoint (no API key, uses web widget backend)
+async function googleTranslate(text, targetLang) {
+  if (!text || targetLang === 'en') return text;
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    return data[0]?.map(s => s[0]).join('') || text;
+  } catch {
+    return text;
+  }
+}
 
 
 const CATEGORY_IMAGES = {
@@ -59,45 +203,7 @@ const getSpiceLevel = (item) => {
   return 0;
 };
 
-// Standard Web Haptic/Vibration Feedback helper
-const triggerHaptic = (type = 'light') => {
-  if (typeof window === 'undefined' || typeof navigator === 'undefined') return;
-  
-  // Log to console so developer can verify trigger in console
-  console.log(`[Haptic API] triggerHaptic called with type: "${type}"`);
-  
-  if (!navigator.vibrate) {
-    console.warn('[Haptic API] navigator.vibrate is NOT supported on this browser/OS (e.g., iOS Safari).');
-    return;
-  }
-  
-  try {
-    let pattern;
-    switch (type) {
-      case 'light':
-        pattern = 40; // Increased from 12ms to 40ms so Android ERM motors have time to spin up
-        break;
-      case 'medium':
-        pattern = 85; // Increased from 25ms to 85ms
-        break;
-      case 'double':
-        pattern = [40, 60, 40];
-        break;
-      case 'success':
-        pattern = [80, 80, 80];
-        break;
-      case 'error':
-        pattern = [120, 80, 120];
-        break;
-      default:
-        pattern = 40;
-    }
-    const success = navigator.vibrate(pattern);
-    console.log(`[Haptic API] navigator.vibrate(${JSON.stringify(pattern)}) returned: ${success}`);
-  } catch (err) {
-    console.error('[Haptic API] Failed to execute navigator.vibrate:', err);
-  }
-};
+// triggerHaptic is imported from '../utils/haptic'
 
 export default function CustomerMenu() {
   const { slug } = useParams();
@@ -135,6 +241,15 @@ export default function CustomerMenu() {
   const [cartBump, setCartBump] = useState(false);
   const [lastAddedId, setLastAddedId] = useState(null);
   const [addedItems, setAddedItems] = useState({}); // track per-item flash
+
+  // ── Language & translation state ──────────────────────────────────────────
+  const [lang, setLang] = useState(() => localStorage.getItem('menu_lang') || 'en');
+  const [langPickerOpen, setLangPickerOpen] = useState(false);
+  const translationCache = useRef({});
+  const [translatedItems, setTranslatedItems] = useState({});
+
+  // ── QR table confirmation toast ───────────────────────────────────────────
+  const [showTableToast, setShowTableToast] = useState(false);
 
   // Rating states
   const [customerRating, setCustomerRating] = useState(0);
@@ -175,6 +290,53 @@ export default function CustomerMenu() {
       return () => clearTimeout(timer);
     }
   }, [loading, error, tableParam]);
+
+  // ── QR toast: show once per session when table comes from URL ─────────────
+  useEffect(() => {
+    if (!loading && !error && tableParam) {
+      const key = `table_toast_shown_${slug}_${tableParam}`;
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+        setTimeout(() => {
+          setShowTableToast(true);
+          triggerHaptic('success');
+          setTimeout(() => setShowTableToast(false), 4000);
+        }, 900);
+      }
+    }
+  }, [loading, error, tableParam, slug]);
+
+  // ── Batch-translate all items when language changes ───────────────────────
+  useEffect(() => {
+    if (lang === 'en' || items.length === 0) {
+      setTranslatedItems({});
+      return;
+    }
+    let cancelled = false;
+    async function translateAll() {
+      const result = {};
+      for (const item of items) {
+        const cacheKey = `${item.id}_${lang}`;
+        if (translationCache.current[cacheKey]) {
+          result[item.id] = translationCache.current[cacheKey];
+        } else {
+          const [name, desc] = await Promise.all([
+            googleTranslate(item.name, lang),
+            item.description ? googleTranslate(item.description, lang) : Promise.resolve(''),
+          ]);
+          const translated = { name, description: desc };
+          translationCache.current[cacheKey] = translated;
+          result[item.id] = translated;
+        }
+      }
+      if (!cancelled) setTranslatedItems(result);
+    }
+    translateAll();
+    return () => { cancelled = true; };
+  }, [lang, items]);
+
+  // ── t() helper for static UI strings ─────────────────────────────────────
+  const t = (key) => (UI_STRINGS[lang] || UI_STRINGS.en)[key] || UI_STRINGS.en[key] || key;
 
   useEffect(() => {
     if (restaurant && restaurant.restaurant_name) {
@@ -428,8 +590,16 @@ export default function CustomerMenu() {
     }
   };
 
+  // Save lang preference
+  const handleLangChange = (code) => {
+    triggerHaptic('light');
+    setLang(code);
+    localStorage.setItem('menu_lang', code);
+    setLangPickerOpen(false);
+  };
+
   return (
-    <div className="client-menu-container">
+    <div className="client-menu-container" onClick={() => langPickerOpen && setLangPickerOpen(false)}>
 
       {/* ── TABLE NUMBER MODAL (Bottom Sheet) ─────────────────────────────── */}
       {tableModalOpen && (
@@ -447,8 +617,14 @@ export default function CustomerMenu() {
             <div className="sheet-icon-ring">
               <MapPin size={22} color="#FF5E00" />
             </div>
-            <h2 className="sheet-title">Which table are you at?</h2>
-            <p className="sheet-sub">Enter your table number so the kitchen knows where to serve you.</p>
+            <h2 className="sheet-title">
+              {tableNumber ? 'Change Your Table' : 'Which table are you at?'}
+            </h2>
+            <p className="sheet-sub">
+              {tableNumber
+                ? `Currently at Table ${tableNumber}. Enter the correct table number below.`
+                : 'Enter your table number so the kitchen knows where to serve you.'}
+            </p>
 
             <input
               type="number"
@@ -466,15 +642,43 @@ export default function CustomerMenu() {
               onClick={confirmTableNumber}
             >
               <MapPin size={16} />
-              <span>{tableModalInput.trim() ? `Sit at Table ${tableModalInput.trim()}` : 'Confirm Table'}</span>
+              <span>
+                {tableModalInput.trim()
+                  ? (tableNumber ? `Change to Table ${tableModalInput.trim()}` : `Sit at Table ${tableModalInput.trim()}`)
+                  : (tableNumber ? 'Update Table' : 'Confirm Table')}
+              </span>
             </button>
 
-            <button className="sheet-skip-btn" onClick={skipTableModal}>
-              Skip for now — I'll enter it later
-            </button>
+            {!tableNumber && (
+              <button className="sheet-skip-btn" onClick={skipTableModal}>
+                Skip for now — I'll enter it later
+              </button>
+            )}
           </div>
         </div>
       )}
+
+      {/* ── QR TABLE CONFIRMATION TOAST ───────────────────────────────────── */}
+      <div className={`qr-table-toast ${showTableToast ? 'visible' : ''}`}
+        onClick={() => {
+          setShowTableToast(false);
+          triggerHaptic('light');
+          setTableModalInput(tableNumber);
+          setTableModalOpen(true);
+          requestAnimationFrame(() => setTableModalVisible(true));
+        }}
+      >
+        <div className="qr-toast-icon-ring">
+          <Check size={16} color="#fff" strokeWidth={3} />
+        </div>
+        <div className="qr-toast-text">
+          <span className="qr-toast-title">{t('qrToastTitle')} <strong>{tableNumber}</strong></span>
+          <span className="qr-toast-sub">{t('qrToastSub')}</span>
+        </div>
+        <button className="qr-toast-close" onClick={(e) => { e.stopPropagation(); setShowTableToast(false); }}>
+          <X size={14} />
+        </button>
+      </div>
 
       {/* 1. Brand Hero Header */}
       <div className="como-hero-banner">
@@ -495,15 +699,19 @@ export default function CustomerMenu() {
           
           <div className="como-hero-badges-row">
             <span className="como-badge green">🟢 Dine-In Open</span>
-            {tableNumber && <span className="como-badge table-tag">📍 Table {tableNumber}</span>}
-            {!tableNumber && (
-              <button
-                className="como-badge table-tag-btn"
-                onClick={() => { triggerHaptic('light'); setTableModalInput(''); setTableModalOpen(true); requestAnimationFrame(() => setTableModalVisible(true)); }}
-              >
-                📍 Set Table Number
-              </button>
-            )}
+            <button
+              className={`como-badge ${tableNumber ? 'table-tag table-tag-editable' : 'table-tag-btn'}`}
+              onClick={() => {
+                triggerHaptic('light');
+                setTableModalInput(tableNumber || '');
+                setTableModalOpen(true);
+                requestAnimationFrame(() => setTableModalVisible(true));
+              }}
+              title={tableNumber ? 'Tap to change table number' : 'Set your table number'}
+              aria-label={tableNumber ? `Table ${tableNumber} — tap to change` : 'Set table number'}
+            >
+              {tableNumber ? `📍 Table ${tableNumber} ✏️` : '📍 Set Table Number'}
+            </button>
           </div>
 
           <button className="como-hero-cta" onClick={() => { triggerHaptic('medium'); scrollToCatalog(); }}>
@@ -522,7 +730,7 @@ export default function CustomerMenu() {
             <div className="success-icon-ring">
               <CheckCircle className="success-icon" size={32} />
             </div>
-            <h2>Order Sent!</h2>
+            <h2>{t('orderSent')}</h2>
             <p className="success-desc">
               {(() => {
                 const mode = restaurant?.order_mode || 'both';
@@ -641,12 +849,13 @@ export default function CustomerMenu() {
             <button className="btn-primary como-order-more-btn" onClick={() => {
               triggerHaptic('medium');
               setOrderPlaced(false);
+              setTranslatedItems({});
               setCustomerRating(0);
               setHoverRating(0);
               setRatingFeedback('');
               setRatingSubmitted(false);
             }}>
-              Order More Dishes
+              {t('orderMoreBtn')}
             </button>
           </div>
         ) : (
@@ -657,9 +866,9 @@ export default function CustomerMenu() {
                 <div className="section-header">
                   <div className="title-row">
                     <Star className="text-warning-gold" size={18} fill="#FFB300" />
-                    <h2>Chef's Specials</h2>
+                    <h2>{t('chefsSpecials')}</h2>
                   </div>
-                  <span className="sub-label">Popular choices</span>
+                  <span className="sub-label">{t('popularChoices')}</span>
                 </div>
                 
                 <div className="como-popular-carousel">
@@ -670,7 +879,7 @@ export default function CustomerMenu() {
                       <div key={item.id} className="como-popular-card">
                         <div className="card-image-box">
                           <img src={dishImg} alt={item.name} />
-                          <div className="card-badge">Must Try</div>
+                          <div className="card-badge">{t('mustTry')}</div>
                           {item.is_veg ? (
                             <div className="diet-tag veg-circle"><div className="green-dot"></div></div>
                           ) : (
@@ -678,8 +887,8 @@ export default function CustomerMenu() {
                           )}
                         </div>
                         <div className="card-info">
-                          <h3>{item.name}</h3>
-                          <p className="item-desc-short">{item.description}</p>
+                          <h3>{translatedItems[item.id]?.name ?? item.name}</h3>
+                          <p className="item-desc-short">{translatedItems[item.id]?.description ?? item.description}</p>
                           <div className="card-footer-row">
                             <span className="card-price">{currencySymbol}{item.price}</span>
                             
@@ -695,7 +904,7 @@ export default function CustomerMenu() {
                                   className={`como-mini-add-btn ${addedItems[item.id] ? 'flash' : ''}`}
                                   onClick={() => addToCart(item)}
                                 >
-                                  <span>ADD</span>
+                                  <span>{t('addBtn')}</span>
                                   <Plus size={10} />
                                 </button>
                               )}
@@ -719,7 +928,7 @@ export default function CustomerMenu() {
                     <Search size={16} className="search-icon" />
                     <input 
                       type="text" 
-                      placeholder="Search for delicious food..."
+                      placeholder={t('searchPlaceholder')}
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
@@ -746,7 +955,7 @@ export default function CustomerMenu() {
                     onClick={() => { triggerHaptic('light'); setVegOnly(!vegOnly); setNonVegOnly(false); }}
                   >
                     <span className="dot-indicator green"></span>
-                    <span>Veg Only</span>
+                    <span>{t('vegOnly')}</span>
                   </button>
                   
                   <button 
@@ -754,7 +963,7 @@ export default function CustomerMenu() {
                     onClick={() => { triggerHaptic('light'); setNonVegOnly(!nonVegOnly); setVegOnly(false); }}
                   >
                     <span className="dot-indicator red"></span>
-                    <span>Non-Veg Only</span>
+                    <span>{t('nonVegOnly')}</span>
                   </button>
                 </div>
 
@@ -764,7 +973,7 @@ export default function CustomerMenu() {
                     className={`como-cat-pill ${selectedCatId === 'all' ? 'active' : ''}`}
                     onClick={() => { triggerHaptic('light'); setSelectedCatId('all'); }}
                   >
-                    🍽️ All Dishes
+                    {t('allDishes')}
                   </button>
                   {categories.map(c => (
                     <button 
@@ -811,8 +1020,8 @@ export default function CustomerMenu() {
                             )}
                           </div>
 
-                          <h3 className="dish-card-title">{item.name}</h3>
-                          <p className="dish-card-desc">{item.description}</p>
+                          <h3 className="dish-card-title">{translatedItems[item.id]?.name ?? item.name}</h3>
+                          <p className="dish-card-desc">{translatedItems[item.id]?.description ?? item.description}</p>
                           <span className="dish-card-price">{currencySymbol}{item.price}</span>
                         </div>
 
@@ -833,7 +1042,7 @@ export default function CustomerMenu() {
                                 className={`como-card-add-btn ${addedItems[item.id] ? 'flash' : ''}`}
                                 onClick={() => addToCart(item)}
                               >
-                                <span>ADD</span>
+                                <span>{t('addBtn')}</span>
                                 <Plus size={14} />
                               </button>
                             )}
@@ -872,7 +1081,7 @@ export default function CustomerMenu() {
             </div>
           </div>
           <div className="cart-bar-right">
-            <span>View Basket</span>
+            <span>{t('viewBasket')}</span>
             <ChevronRight size={16} />
           </div>
         </div>
@@ -889,7 +1098,7 @@ export default function CustomerMenu() {
             <div className="como-drawer-header">
               <div className="header-title-box">
                 <ShoppingBag size={20} className="text-orange" />
-                <h3>Your Basket</h3>
+                <h3>{t('yourBasket')}</h3>
                 {getCartCount() > 0 && (
                   <span className="drawer-item-count-pill">{getCartCount()} {getCartCount() === 1 ? 'item' : 'items'}</span>
                 )}
@@ -903,7 +1112,7 @@ export default function CustomerMenu() {
 
               {/* ── Table Number ────────────────────────── */}
               <div className="como-input-group">
-                <label className="input-label">📍 Table Number</label>
+                <label className="input-label">{t('tableLabel')}</label>
                 <div className="table-input-row">
                   <input
                     type="number"
@@ -1012,6 +1221,38 @@ export default function CustomerMenu() {
           </div>
         </div>
       )}
+
+      {/* ── LANGUAGE FAB ──────────────────────────────────────────────────── */}
+      <div className="lang-fab-wrapper" onClick={e => e.stopPropagation()}>
+        {langPickerOpen && (
+          <div className="lang-picker-dropdown">
+            <div className="lang-picker-header">
+              <Globe size={14} />
+              <span>{t('langLabel')}</span>
+            </div>
+            {LANGUAGES.map(l => (
+              <button
+                key={l.code}
+                className={`lang-option ${lang === l.code ? 'active' : ''}`}
+                onClick={() => handleLangChange(l.code)}
+              >
+                <span className="lang-flag">{l.flag}</span>
+                <span className="lang-name">{l.label}</span>
+                {lang === l.code && <Check size={13} className="lang-check" />}
+              </button>
+            ))}
+          </div>
+        )}
+        <button
+          className={`lang-fab ${langPickerOpen ? 'open' : ''}`}
+          onClick={() => { triggerHaptic('light'); setLangPickerOpen(o => !o); }}
+          title="Change Language"
+          aria-label="Change menu language"
+        >
+          <Globe size={17} />
+          <span className="lang-fab-code">{LANGUAGES.find(l => l.code === lang)?.flag}</span>
+        </button>
+      </div>
 
       {/* Inline styles */}
       <style>{`
@@ -1239,6 +1480,29 @@ export default function CustomerMenu() {
           background: rgba(255, 94, 0, 0.15); color: #FF5E00;
           border: 1px solid rgba(255, 94, 0, 0.25);
           box-shadow: 0 0 10px rgba(255, 94, 0, 0.1);
+        }
+        /* Editable table badge — always a button, clickable */
+        .como-badge.table-tag-editable {
+          cursor: pointer;
+          font-family: inherit;
+          transition: background 0.2s ease, border-color 0.2s ease,
+                      transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1),
+                      box-shadow 0.2s ease;
+          /* gentle attention pulse on first render */
+          animation: table-badge-pulse 2.5s ease 1.2s 2;
+        }
+        .como-badge.table-tag-editable:hover {
+          background: rgba(255, 94, 0, 0.28);
+          border-color: rgba(255, 94, 0, 0.6);
+          box-shadow: 0 0 18px rgba(255, 94, 0, 0.25);
+          transform: scale(1.05);
+        }
+        .como-badge.table-tag-editable:active {
+          transform: scale(0.97);
+        }
+        @keyframes table-badge-pulse {
+          0%, 100% { box-shadow: 0 0 10px rgba(255, 94, 0, 0.1); }
+          50%       { box-shadow: 0 0 20px rgba(255, 94, 0, 0.45); transform: scale(1.06); }
         }
         .como-hero-cta {
           display: flex; align-items: center; gap: 8px;
@@ -2044,6 +2308,192 @@ export default function CustomerMenu() {
           font-family: inherit;
         }
         .rating-share-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(37, 211, 102, 0.4); }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           QR TABLE CONFIRMATION TOAST
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        .qr-table-toast {
+          position: fixed;
+          bottom: 96px;
+          right: 20px;
+          z-index: 3000;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          background: #1a1a1e;
+          border: 1px solid rgba(255, 255, 255, 0.10);
+          border-left: 3px solid #22c55e;
+          border-radius: 16px;
+          padding: 14px 16px;
+          box-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(34,197,94,0.08);
+          max-width: 320px;
+          width: calc(100vw - 40px);
+          cursor: pointer;
+          transform: translateX(calc(100% + 24px));
+          opacity: 0;
+          transition: transform 0.45s cubic-bezier(0.34, 1.20, 0.64, 1), opacity 0.3s ease;
+          pointer-events: none;
+          backdrop-filter: blur(12px);
+        }
+        .qr-table-toast.visible {
+          transform: translateX(0);
+          opacity: 1;
+          pointer-events: all;
+        }
+        .qr-toast-icon-ring {
+          width: 34px;
+          height: 34px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #16a34a, #22c55e);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          box-shadow: 0 0 14px rgba(34,197,94,0.4);
+          animation: toast-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s both;
+        }
+        @keyframes toast-pop {
+          from { transform: scale(0.5); opacity: 0; }
+          to   { transform: scale(1);   opacity: 1; }
+        }
+        .qr-toast-text {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          flex: 1;
+          min-width: 0;
+        }
+        .qr-toast-title {
+          font-size: 13.5px;
+          font-weight: 700;
+          color: #ffffff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .qr-toast-title strong {
+          color: #22c55e;
+          font-size: 15px;
+        }
+        .qr-toast-sub {
+          font-size: 11px;
+          color: rgba(255,255,255,0.42);
+          line-height: 1.4;
+        }
+        .qr-toast-close {
+          background: rgba(255,255,255,0.06);
+          border: none;
+          color: rgba(255,255,255,0.35);
+          width: 26px;
+          height: 26px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          flex-shrink: 0;
+          transition: all 0.15s ease;
+        }
+        .qr-toast-close:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+        /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+           LANGUAGE FAB
+        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+        .lang-fab-wrapper {
+          position: fixed;
+          bottom: 90px;
+          left: 18px;
+          z-index: 2500;
+          display: flex;
+          flex-direction: column-reverse;
+          align-items: flex-start;
+          gap: 8px;
+        }
+        .lang-fab {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          background: #1c1c22;
+          border: 1px solid rgba(255,255,255,0.12);
+          border-radius: 22px;
+          padding: 9px 14px;
+          color: #ffffff;
+          font-size: 14px;
+          cursor: pointer;
+          transition: all 0.25s cubic-bezier(0.34, 1.20, 0.64, 1);
+          box-shadow: 0 8px 28px rgba(0,0,0,0.5);
+          font-family: 'Outfit', sans-serif;
+          font-weight: 600;
+        }
+        .lang-fab:hover, .lang-fab.open {
+          background: #26262e;
+          border-color: rgba(255,94,0,0.4);
+          box-shadow: 0 0 0 3px rgba(255,94,0,0.12), 0 8px 28px rgba(0,0,0,0.5);
+          transform: scale(1.04);
+        }
+        .lang-fab-code {
+          font-size: 17px;
+          line-height: 1;
+        }
+        .lang-picker-dropdown {
+          background: #18181e;
+          border: 1px solid rgba(255,255,255,0.10);
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+          min-width: 180px;
+          animation: langPickerIn 0.25s cubic-bezier(0.34, 1.20, 0.64, 1);
+        }
+        @keyframes langPickerIn {
+          from { opacity: 0; transform: translateY(12px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0)  scale(1); }
+        }
+        .lang-picker-header {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          padding: 11px 16px 8px;
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: rgba(255,255,255,0.35);
+          border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .lang-option {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 11px 16px;
+          background: none;
+          border: none;
+          color: rgba(255,255,255,0.75);
+          font-size: 13.5px;
+          font-family: 'Outfit', sans-serif;
+          font-weight: 500;
+          cursor: pointer;
+          text-align: left;
+          transition: background 0.15s ease, color 0.15s ease;
+        }
+        .lang-option:hover {
+          background: rgba(255,255,255,0.05);
+          color: #ffffff;
+        }
+        .lang-option.active {
+          background: rgba(255, 94, 0, 0.10);
+          color: #FF5E00;
+          font-weight: 700;
+        }
+        .lang-flag { font-size: 18px; line-height: 1; }
+        .lang-name { flex: 1; }
+        .lang-check { color: #FF5E00; flex-shrink: 0; }
+
+        /* Toast position adjustment when cart bar is visible */
+        @media (max-width: 480px) {
+          .qr-table-toast { bottom: 100px; right: 16px; }
+          .lang-fab-wrapper { bottom: 100px; left: 16px; }
+        }
       `}</style>
     </div>
   );

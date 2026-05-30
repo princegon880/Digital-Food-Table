@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSignUp, useAuth } from '@clerk/clerk-react';
 import { api } from '../utils/api';
+import { triggerHaptic } from '../utils/haptic';
 import { Sparkles, Phone, Lock, Store, AlertCircle, Loader, Mail, ArrowLeft, Eye, EyeOff } from 'lucide-react';
 
 const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
@@ -97,8 +98,10 @@ function ClerkRegister() {
       
       setStep('otp');
       setTimer(30);
+      triggerHaptic('success');
     } catch (err) {
       console.error('Clerk Sign Up Start Error:', err);
+      triggerHaptic('error');
       const isAlreadySignedIn = err.errors?.some(e => e.code === 'already_signed_in') || err.message?.includes('already signed in');
       if (isAlreadySignedIn) {
         // Redirect to dashboard since session is active
@@ -150,6 +153,7 @@ function ClerkRegister() {
         localStorage.setItem('profile', JSON.stringify(data.profile));
 
         setIsSigningUp(false);
+        triggerHaptic('success');
         navigate('/dashboard');
       } else {
         setError(`Registration status: ${completeSignUp.status}. Verification incomplete.`);
@@ -157,6 +161,7 @@ function ClerkRegister() {
       }
     } catch (err) {
       console.error('Clerk Sign Up Complete Error:', err);
+      triggerHaptic('error');
       const isAlreadySignedIn = err.errors?.some(e => e.code === 'already_signed_in') || err.message?.includes('already signed in');
       
       if (isAlreadySignedIn) {
@@ -209,6 +214,7 @@ function ClerkRegister() {
 
   // Go back to details step
   const handleGoBack = () => {
+    triggerHaptic('light');
     setStep('details');
     setError('');
     setOtp(['', '', '', '', '', '']);
@@ -222,6 +228,7 @@ function ClerkRegister() {
     const newOtp = [...otp];
     newOtp[index] = val.substring(val.length - 1);
     setOtp(newOtp);
+    if (val !== '') triggerHaptic('light');
 
     // Focus next input
     if (val !== '' && index < 5) {
@@ -375,6 +382,7 @@ function LocalRegister() {
       generateMockOtp();
       setStep('otp');
       setTimer(30);
+      triggerHaptic('success');
       setLoading(false);
     }, 800);
   };
@@ -412,10 +420,11 @@ function LocalRegister() {
 
       // Save profile locally
       localStorage.setItem('profile', JSON.stringify(data.profile));
-
+      triggerHaptic('success');
       navigate('/dashboard');
     } catch (err) {
       console.error('Local Register Error:', err);
+      triggerHaptic('error');
       setError(err.message || 'Server error during local registration.');
     } finally {
       setLoading(false);
@@ -440,6 +449,7 @@ function LocalRegister() {
 
   // Go back to details step
   const handleGoBack = () => {
+    triggerHaptic('light');
     setStep('details');
     setError('');
     setOtp(['', '', '', '', '', '']);
@@ -453,6 +463,7 @@ function LocalRegister() {
     const newOtp = [...otp];
     newOtp[index] = val.substring(val.length - 1);
     setOtp(newOtp);
+    if (val !== '') triggerHaptic('light');
 
     // Focus next input
     if (val !== '' && index < 5) {
