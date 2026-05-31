@@ -369,10 +369,9 @@ export default function CustomerMenu() {
       setTableCheckingOccupancy(true);
       setTableModalError('');
       try {
-        const res = await fetch(
-          `/api/orders/check-table?slug=${encodeURIComponent(slug)}&table=${encodeURIComponent(val)}`
+        const data = await api.get(
+          `/orders/check-table?slug=${encodeURIComponent(slug)}&table=${encodeURIComponent(val)}`
         );
-        const data = await res.json();
         if (data.occupied) {
           triggerHaptic('error');
           setTableModalError(
@@ -382,7 +381,7 @@ export default function CustomerMenu() {
           return;
         }
       } catch {
-        // Network error — fail open, let customer proceed
+        // Network / server error — fail open so customer is never stuck
       } finally {
         setTableCheckingOccupancy(false);
       }
