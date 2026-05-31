@@ -235,7 +235,9 @@ export default function CustomerMenu() {
   // Show modal if no table number from URL and never confirmed yet this session
   const [tableModalOpen, setTableModalOpen] = useState(false);
   const [tableModalInput, setTableModalInput] = useState('');
-  const [tableModalVisible, setTableModalVisible] = useState(false); // for animation
+  const [tableModalVisible, setTableModalVisible] = useState(false);
+  const [tableModalError, setTableModalError] = useState('');
+  const [tableCheckingOccupancy, setTableCheckingOccupancy] = useState(false);
 
   // ── NEW: Cart add feedback animation key ───────────────────────────────────
   const [cartBump, setCartBump] = useState(false);
@@ -354,15 +356,41 @@ export default function CustomerMenu() {
   }
 
   // ── Table modal confirm ────────────────────────────────────────────────────
-  const confirmTableNumber = () => {
+  const confirmTableNumber = async () => {
     const val = tableModalInput.trim();
-    if (val) {
-      setTableNumber(val);
-      triggerHaptic('success');
-    } else {
+    if (!val) {
       triggerHaptic('error');
+      setTableModalError('Please enter a table number.');
+      return;
     }
-    // Close with animation
+
+    // If the customer is changing to a DIFFERENT table, check occupancy
+    if (val !== tableNumber) {
+      setTableCheckingOccupancy(true);
+      setTableModalError('');
+      try {
+        const res = await fetch(
+          `/api/orders/check-table?slug=${encodeURIComponent(slug)}&table=${encodeURIComponent(val)}`
+        );
+        const data = await res.json();
+        if (data.occupied) {
+          triggerHaptic('error');
+          setTableModalError(
+            `⛔ Table ${val} is currently occupied by another party. Please choose a different table or ask staff for help.`
+          );
+          setTableCheckingOccupancy(false);
+          return;
+        }
+      } catch {
+        // Network error — fail open, let customer proceed
+      } finally {
+        setTableCheckingOccupancy(false);
+      }
+    }
+
+    setTableNumber(val);
+    setTableModalError('');
+    triggerHaptic('success');
     setTableModalVisible(false);
     setTimeout(() => setTableModalOpen(false), 280);
   };
@@ -632,21 +660,34 @@ export default function CustomerMenu() {
               className="sheet-table-input"
               placeholder="e.g. 5"
               value={tableModalInput}
-              onChange={e => setTableModalInput(e.target.value)}
+              onChange={e => { setTableModalInput(e.target.value); setTableModalError(''); }}
               onKeyDown={e => e.key === 'Enter' && confirmTableNumber()}
               autoFocus
+              disabled={tableCheckingOccupancy}
             />
+
+            {/* Occupancy error block */}
+            {tableModalError && (
+              <div className="table-modal-error">
+                <span>{tableModalError}</span>
+              </div>
+            )}
 
             <button
               className="sheet-confirm-btn"
               onClick={confirmTableNumber}
+              disabled={tableCheckingOccupancy}
             >
-              <MapPin size={16} />
-              <span>
-                {tableModalInput.trim()
-                  ? (tableNumber ? `Change to Table ${tableModalInput.trim()}` : `Sit at Table ${tableModalInput.trim()}`)
-                  : (tableNumber ? 'Update Table' : 'Confirm Table')}
-              </span>
+              {tableCheckingOccupancy ? (
+                <><span className="sheet-checking-spinner" /> <span>Checking table...</span></>
+              ) : (
+                <><MapPin size={16} />
+                <span>
+                  {tableModalInput.trim()
+                    ? (tableNumber ? `Change to Table ${tableModalInput.trim()}` : `Sit at Table ${tableModalInput.trim()}`)
+                    : (tableNumber ? 'Update Table' : 'Confirm Table')}
+                </span></>
+              )}
             </button>
 
             {!tableNumber && (
@@ -1407,6 +1448,37 @@ export default function CustomerMenu() {
           transition: color 0.2s;
         }
         .sheet-skip-btn:hover { color: #A0A0AB; }
+
+        /* Occupancy block error */
+        .table-modal-error {
+          width: 100%;
+          background: rgba(239, 68, 68, 0.10);
+          border: 1px solid rgba(239, 68, 68, 0.35);
+          border-left: 3px solid #ef4444;
+          border-radius: 10px;
+          padding: 12px 14px;
+          font-size: 13px;
+          color: #fca5a5;
+          line-height: 1.5;
+          animation: fadeSlideUp 0.22s ease;
+        }
+
+        /* Spinner inside confirm button while checking */
+        .sheet-checking-spinner {
+          display: inline-block;
+          width: 16px;
+          height: 16px;
+          border: 2px solid rgba(255,255,255,0.25);
+          border-top-color: #ffffff;
+          border-radius: 50%;
+          animation: spin 0.7s linear infinite;
+          flex-shrink: 0;
+        }
+        .sheet-confirm-btn:disabled {
+          opacity: 0.7;
+          cursor: not-allowed;
+        }
+
 
         /* Table-tag button in hero */
         .como-badge.table-tag-btn {

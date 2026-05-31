@@ -130,6 +130,62 @@ router.post('/', async (req, res) => {
   }
 });
 
+// @route   GET /api/orders/check-table
+// @desc    Check if a table is currently occupied (has active unpaid order today)
+// @access  Public (called by customer before table change)
+// @query   slug, table
+router.get('/check-table', async (req, res) => {
+  const { slug, table } = req.query;
+
+  if (!slug || !table) {
+    return res.status(400).json({ error: 'slug and table are required' });
+  }
+
+  try {
+    // Resolve restaurant from slug
+    const { data: restaurant, error: restError } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('slug', slug.trim())
+      .single();
+
+    if (restError || !restaurant) {
+      return res.status(404).json({ error: 'Restaurant not found' });
+    }
+
+    // Check for active unpaid orders on that table today
+    const { data: existingOrders, error: findError } = await supabase
+      .from('orders')
+      .select('id, status, created_at')
+      .eq('restaurant_id', restaurant.id)
+      .eq('table_number', table.toString().trim())
+      .eq('payment_status', 'Unpaid');
+
+    if (findError) throw findError;
+
+    const isToday = (iso) => {
+      if (!iso) return false;
+      const d = new Date(iso);
+      const t = new Date();
+      return d.getDate() === t.getDate() &&
+             d.getMonth() === t.getMonth() &&
+             d.getFullYear() === t.getFullYear();
+    };
+
+    const activeOrders = (existingOrders || []).filter(
+      o => o.status !== 'Cancelled' && isToday(o.created_at)
+    );
+
+    res.json({ occupied: activeOrders.length > 0 });
+  } catch (err) {
+    console.error('Check table error:', err);
+    // Fail open — don't block the customer if the check itself errors
+    res.json({ occupied: false });
+  }
+});
+
+
+
 // @route   PUT /api/orders/:id/status
 // @desc    Update order status
 // @access  Private
