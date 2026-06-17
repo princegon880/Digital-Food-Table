@@ -34,6 +34,10 @@ function matchFilter(row, filter) {
     }
   }
 
+  if (filter.operator === 'neq') {
+    return rowValue != filterValue;
+  }
+
   if (filter.operator === 'gt') {
     return rowValue > filterValue;
   }
@@ -122,6 +126,11 @@ class QueryBuilder {
 
   ilike(field, value) {
     this.filters.push({ field, value, operator: 'ilike' });
+    return this;
+  }
+
+  neq(field, value) {
+    this.filters.push({ field, value, operator: 'neq' });
     return this;
   }
 

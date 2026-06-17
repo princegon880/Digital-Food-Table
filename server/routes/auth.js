@@ -220,10 +220,12 @@ router.get('/me', requireAuth, async (req, res) => {
 // @desc    Update restaurant profile settings
 // @access  Private
 router.put('/profile', requireAuth, async (req, res) => {
-  const { restaurantName, phoneNumber, currency, coverImage, establishedYear, tagline, slug, orderMode } = req.body;
+  const { restaurantName, phoneNumber, currency, coverImage, establishedYear, tagline, slug, orderMode, tablesList, allowTableChange } = req.body;
   const updates = {};
   
   if (restaurantName !== undefined) updates.restaurant_name = restaurantName;
+  if (tablesList !== undefined) updates.tables_list = tablesList;
+  if (allowTableChange !== undefined) updates.allow_table_change = allowTableChange;
   if (phoneNumber !== undefined) {
     const cleanPhone = String(phoneNumber).replace(/[^0-9]/g, '');
     if (cleanPhone.length !== 10) {
@@ -284,13 +286,17 @@ router.put('/profile', requireAuth, async (req, res) => {
     if (result.error && result.error.message && (
       result.error.message.includes('established_year') ||
       result.error.message.includes('tagline') ||
-      result.error.message.includes('order_mode')
+      result.error.message.includes('order_mode') ||
+      result.error.message.includes('tables_list') ||
+      result.error.message.includes('allow_table_change')
     )) {
       console.warn('DB column missing. Retrying profile update without optional columns:', result.error.message);
       const safeUpdates = { ...updates };
       delete safeUpdates.established_year;
       delete safeUpdates.tagline;
       delete safeUpdates.order_mode;
+      delete safeUpdates.tables_list;
+      delete safeUpdates.allow_table_change;
       
       result = await supabase
         .from('profiles')
@@ -304,11 +310,17 @@ router.put('/profile', requireAuth, async (req, res) => {
       return res.status(400).json({ error: 'Failed to update profile: ' + result.error.message });
     }
 
-    // If order_mode was in the original updates but got stripped (column missing),
+    // If order_mode, tables_list or allow_table_change was in the original updates but got stripped (column missing),
     // merge it back into the response so the frontend still reflects the selection.
     const responseData = { ...result.data };
     if (updates.order_mode !== undefined && responseData.order_mode === undefined) {
       responseData.order_mode = updates.order_mode;
+    }
+    if (updates.tables_list !== undefined && responseData.tables_list === undefined) {
+      responseData.tables_list = updates.tables_list;
+    }
+    if (updates.allow_table_change !== undefined && responseData.allow_table_change === undefined) {
+      responseData.allow_table_change = updates.allow_table_change;
     }
 
     res.json(responseData);

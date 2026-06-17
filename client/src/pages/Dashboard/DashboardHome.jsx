@@ -69,6 +69,8 @@ export default function DashboardHome() {
   const [recentFeedback, setRecentFeedback] = useState([]);
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState(() => JSON.parse(localStorage.getItem('profile') || '{}'));
+  const [todayOrders, setTodayOrders] = useState([]);
+  const [showRevenueTooltip, setShowRevenueTooltip] = useState(false);
 
   useEffect(() => {
     async function fetchStats() {
@@ -107,6 +109,7 @@ export default function DashboardHome() {
           totalRatings: ratingList.length
         });
         setRecentFeedback(withFeedback);
+        setTodayOrders(todayOrders);
 
         if (meData && meData.profile) {
           localStorage.setItem('profile', JSON.stringify(meData.profile));
@@ -123,6 +126,47 @@ export default function DashboardHome() {
   }, []);
 
   const currency = profile.currency || '₹';
+  
+  // Today's revenue calculations for interactive popover tooltip
+  const upiRevenue = todayOrders
+    .filter(o => o.payment_status === 'Paid' && o.payment_method === 'UPI')
+    .reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
+
+  const cashRevenue = todayOrders
+    .filter(o => o.payment_status === 'Paid' && o.payment_method === 'Cash')
+    .reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
+
+  const cardRevenue = todayOrders
+    .filter(o => o.payment_status === 'Paid' && o.payment_method === 'Card')
+    .reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
+
+  const unpaidRevenue = todayOrders
+    .filter(o => o.payment_status !== 'Paid')
+    .reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
+
+  const totalCalculated = upiRevenue + cashRevenue + cardRevenue + unpaidRevenue || 1;
+
+  // Hourly breakdowns
+  const lunchRevenue = todayOrders
+    .filter(o => {
+      const hr = new Date(o.created_at).getHours();
+      return hr >= 11 && hr < 16;
+    })
+    .reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
+
+  const dinnerRevenue = todayOrders
+    .filter(o => {
+      const hr = new Date(o.created_at).getHours();
+      return hr >= 18 && hr < 23;
+    })
+    .reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
+
+  const otherRevenue = todayOrders
+    .filter(o => {
+      const hr = new Date(o.created_at).getHours();
+      return (hr < 11 || (hr >= 16 && hr < 18) || hr >= 23);
+    })
+    .reduce((sum, o) => sum + parseFloat(o.total_price || 0), 0);
 
   const primaryStats = [
     {
@@ -198,8 +242,15 @@ export default function DashboardHome() {
           <div className="stats-grid stats-grid-4">
             {primaryStats.map((card, idx) => {
               const Icon = card.icon;
+              const isRevenueCard = card.name === "Today's Revenue";
               return (
-                <div key={idx} className="glass stat-card">
+                <div 
+                  key={idx} 
+                  className={`glass stat-card ${isRevenueCard ? 'revenue-stat-card' : ''}`}
+                  onMouseEnter={() => isRevenueCard && setShowRevenueTooltip(true)}
+                  onMouseLeave={() => isRevenueCard && setShowRevenueTooltip(false)}
+                  style={{ position: 'relative' }}
+                >
                   <div className="stat-content">
                     <span className="stat-label">{card.name}</span>
                     <span className="stat-value" style={{ color: card.color }}>
@@ -210,6 +261,60 @@ export default function DashboardHome() {
                   <div className="stat-icon-wrapper" style={{ backgroundColor: card.bg, color: card.color }}>
                     <Icon size={22} />
                   </div>
+
+                  {isRevenueCard && showRevenueTooltip && (
+                    <div className="glass revenue-popover animated fadeIn">
+                      <div className="popover-header">
+                        <h4>Today's Revenue</h4>
+                        <span className="popover-total">{currency}{Math.round(totalCalculated).toLocaleString()}</span>
+                      </div>
+                      
+                      {/* Segmented bar graph */}
+                      <div className="popover-bar-container">
+                        <div className="popover-bar-label">Payment Methods</div>
+                        <div className="segmented-bar">
+                          {upiRevenue > 0 && <div className="bar-segment bar-upi" style={{ width: `${(upiRevenue/totalCalculated)*100}%` }} />}
+                          {cashRevenue > 0 && <div className="bar-segment bar-cash" style={{ width: `${(cashRevenue/totalCalculated)*100}%` }} />}
+                          {cardRevenue > 0 && <div className="bar-segment bar-card" style={{ width: `${(cardRevenue/totalCalculated)*100}%` }} />}
+                          {unpaidRevenue > 0 && <div className="bar-segment bar-unpaid" style={{ width: `${(unpaidRevenue/totalCalculated)*100}%` }} />}
+                        </div>
+                        <div className="bar-legend">
+                          <div className="legend-item"><span className="legend-dot upi" /> UPI: <span>{currency}{Math.round(upiRevenue)}</span></div>
+                          <div className="legend-item"><span className="legend-dot cash" /> Cash: <span>{currency}{Math.round(cashRevenue)}</span></div>
+                          <div className="legend-item"><span className="legend-dot card" /> Card: <span>{currency}{Math.round(cardRevenue)}</span></div>
+                          <div className="legend-item"><span className="legend-dot unpaid" /> Unpaid: <span>{currency}{Math.round(unpaidRevenue)}</span></div>
+                        </div>
+                      </div>
+
+                      {/* Hourly chunks */}
+                      <div className="popover-sections">
+                        <div className="popover-bar-label">Meal-Time Performance</div>
+                        <div className="hourly-bars">
+                          <div className="hourly-row">
+                            <span className="hour-label">Lunch (11-4)</span>
+                            <div className="hour-progress-bg">
+                              <div className="hour-progress-fill" style={{ width: `${totalCalculated > 0 ? (lunchRevenue/totalCalculated)*100 : 0}%` }} />
+                            </div>
+                            <span className="hour-val">{currency}{Math.round(lunchRevenue)}</span>
+                          </div>
+                          <div className="hourly-row">
+                            <span className="hour-label">Dinner (6-11)</span>
+                            <div className="hour-progress-bg">
+                              <div className="hour-progress-fill" style={{ width: `${totalCalculated > 0 ? (dinnerRevenue/totalCalculated)*100 : 0}%` }} />
+                            </div>
+                            <span className="hour-val">{currency}{Math.round(dinnerRevenue)}</span>
+                          </div>
+                          <div className="hourly-row">
+                            <span className="hour-label">Other Hours</span>
+                            <div className="hour-progress-bg">
+                              <div className="hour-progress-fill" style={{ width: `${totalCalculated > 0 ? (otherRevenue/totalCalculated)*100 : 0}%` }} />
+                            </div>
+                            <span className="hour-val">{currency}{Math.round(otherRevenue)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -637,6 +742,164 @@ export default function DashboardHome() {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+
+        /* ─── Revenue Popover ─── */
+        .revenue-stat-card {
+          cursor: pointer;
+          position: relative;
+        }
+        .revenue-stat-card:hover {
+          z-index: 100 !important;
+        }
+
+        .revenue-popover {
+          position: absolute;
+          top: calc(100% + 12px);
+          left: 0;
+          width: 320px;
+          padding: 18px;
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border-dark);
+          box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+          background: rgba(13, 17, 24, 0.96) !important;
+          backdrop-filter: blur(20px);
+          z-index: 50;
+          text-align: left;
+        }
+
+        @media (max-width: 768px) {
+          .revenue-popover {
+            width: 280px;
+            left: auto;
+            right: 0;
+          }
+        }
+
+        .popover-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 14px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          padding-bottom: 8px;
+        }
+
+        .popover-header h4 {
+          font-size: 13px;
+          font-weight: 700;
+          margin: 0;
+          color: var(--text-dark-primary);
+        }
+
+        .popover-total {
+          font-size: 14px;
+          font-weight: 800;
+          font-family: var(--font-brand);
+          color: var(--success);
+        }
+
+        .popover-bar-container {
+          margin-bottom: 16px;
+        }
+
+        .popover-bar-label {
+          font-size: 10px;
+          font-weight: 600;
+          color: var(--text-dark-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-bottom: 8px;
+        }
+
+        .segmented-bar {
+          display: flex;
+          height: 8px;
+          border-radius: 4px;
+          overflow: hidden;
+          background: rgba(255, 255, 255, 0.05);
+          margin-bottom: 12px;
+        }
+
+        .bar-segment {
+          height: 100%;
+          transition: width 0.3s ease;
+        }
+        .bar-upi { background: #10B981; }
+        .bar-cash { background: #3B82F6; }
+        .bar-card { background: #8B5CF6; }
+        .bar-unpaid { background: #EF4444; }
+
+        .bar-legend {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 8px;
+        }
+
+        .legend-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: var(--text-dark-secondary);
+        }
+
+        .legend-item span {
+          font-weight: 600;
+          color: var(--text-dark-primary);
+        }
+
+        .legend-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+          display: inline-block;
+          flex-shrink: 0;
+        }
+        .legend-dot.upi { background: #10B981; }
+        .legend-dot.cash { background: #3B82F6; }
+        .legend-dot.card { background: #8B5CF6; }
+        .legend-dot.unpaid { background: #EF4444; }
+
+        .hourly-bars {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .hourly-row {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          font-size: 11px;
+        }
+
+        .hour-label {
+          width: 85px;
+          color: var(--text-dark-muted);
+          white-space: nowrap;
+        }
+
+        .hour-progress-bg {
+          flex-grow: 1;
+          height: 6px;
+          background: rgba(255, 255, 255, 0.05);
+          border-radius: 3px;
+          overflow: hidden;
+        }
+
+        .hour-progress-fill {
+          height: 100%;
+          background: var(--primary);
+          border-radius: 3px;
+          transition: width 0.3s ease;
+        }
+
+        .hour-val {
+          width: 45px;
+          text-align: right;
+          font-weight: 600;
+          color: var(--text-dark-primary);
         }
       `}</style>
     </div>

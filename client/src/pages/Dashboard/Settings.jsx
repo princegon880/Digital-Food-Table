@@ -14,6 +14,8 @@ export default function Settings() {
   const [tagline, setTagline] = useState(profile.tagline || 'Premium Dining Experience');
   const [slug, setSlug] = useState(profile.slug || '');
   const [orderMode, setOrderMode] = useState(profile.order_mode || 'both');
+  const [tablesList, setTablesList] = useState(profile.tables_list || '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12');
+  const [allowTableChange, setAllowTableChange] = useState(profile.allow_table_change !== false);
   
   const [imageFile, setImageFile] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -37,6 +39,8 @@ export default function Settings() {
           setTagline(data.profile.tagline || 'Premium Dining Experience');
           setSlug(data.profile.slug || '');
           setOrderMode(data.profile.order_mode || 'both');
+          setTablesList(data.profile.tables_list || '1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12');
+          setAllowTableChange(data.profile.allow_table_change !== false);
         }
       } catch (err) {
         console.error('Failed to fetch profile in settings:', err);
@@ -73,7 +77,7 @@ export default function Settings() {
     setSuccess(false);
     setError('');
 
-    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    const cleanPhone = String(phoneNumber).replace(/[^0-9]/g, '');
     if (cleanPhone.length !== 10) {
       triggerHaptic('error');
       setError('WhatsApp number must be exactly 10 digits.');
@@ -100,7 +104,9 @@ export default function Settings() {
         establishedYear,
         tagline,
         slug,
-        orderMode
+        orderMode,
+        tablesList,
+        allowTableChange
       });
 
       // Update local storage and state
@@ -298,6 +304,39 @@ export default function Settings() {
                 placeholder="e.g. 2026"
                 required
               />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Restaurant Tables Configuration</label>
+            <div className="input-with-icon">
+              <Layers className="input-icon" size={18} />
+              <input 
+                type="text" 
+                className="form-control"
+                value={tablesList}
+                onChange={(e) => setTablesList(e.target.value)}
+                placeholder="e.g. 1, 2, 3, 4, 5, 6, Bar-1, Bar-2"
+                required
+              />
+            </div>
+            <span className="input-hint">Enter your table names/labels separated by commas. These will display as the quick select options on the digital menu.</span>
+          </div>
+
+          <div className="form-group row-group" style={{ flexDirection: 'row', alignItems: 'center', padding: '16px', background: 'rgba(255, 255, 255, 0.02)', border: '1.5px solid var(--border-dark)', borderRadius: 'var(--radius-md)', marginTop: '4px', marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+              <span className="form-label" style={{ textTransform: 'none', fontSize: '14px', fontWeight: '600', letterSpacing: 'normal', color: 'var(--text-dark-primary)' }}>Allow Table Changes</span>
+              <span className="input-hint" style={{ marginTop: 0 }}>If disabled, customers cannot manually modify their table number on the menu.</span>
+            </div>
+            <div className="switch-wrapper">
+              <label className="switch">
+                <input 
+                  type="checkbox" 
+                  checked={allowTableChange}
+                  onChange={(e) => { triggerHaptic('light'); setAllowTableChange(e.target.checked); }}
+                />
+                <span className="slider"></span>
+              </label>
             </div>
           </div>
 

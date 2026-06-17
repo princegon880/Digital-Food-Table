@@ -13,6 +13,8 @@ import Settings from './pages/Dashboard/Settings';
 import CustomerMenu from './pages/CustomerMenu';
 import LiveDashboard from './pages/Dashboard/LiveDashboard';
 import OrdersTracker from './pages/Dashboard/OrdersTracker';
+import TableView from './pages/Dashboard/TableView';
+import DishAnalytics from './pages/Dashboard/DishAnalytics';
 
 const isClerkEnabled = !!import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
@@ -77,6 +79,8 @@ function DashboardLayout() {
           <Route path="settings" element={<Settings />} />
           <Route path="live" element={<LiveDashboard />} />
           <Route path="orders" element={<OrdersTracker />} />
+          <Route path="tables" element={<TableView />} />
+          <Route path="analytics" element={<DishAnalytics />} />
         </Routes>
       </main>
 

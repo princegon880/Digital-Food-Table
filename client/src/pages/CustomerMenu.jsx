@@ -18,7 +18,8 @@ import {
   ChevronRight,
   MapPin,
   Globe,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 
 // ── Language config ────────────────────────────────────────────────────────────
@@ -212,6 +213,26 @@ export default function CustomerMenu() {
   const menuCatalogRef = useRef(null);
 
   const [restaurant, setRestaurant] = useState(null);
+  const isTableChangeAllowed = !restaurant || (restaurant.allow_table_change !== false && restaurant.allow_table_change !== 'false');
+
+  const getTablesArray = useCallback(() => {
+    if (restaurant && restaurant.tables_list && restaurant.tables_list.trim() !== '') {
+      const arr = restaurant.tables_list
+        .split(',')
+        .map(t => t.trim())
+        .filter(t => t !== '');
+      return arr.sort((a, b) => {
+        const numA = parseInt(a, 10);
+        const numB = parseInt(b, 10);
+        if (!isNaN(numA) && !isNaN(numB)) {
+          return numA - numB;
+        }
+        return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+    return ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12'];
+  }, [restaurant]);
+
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -226,7 +247,23 @@ export default function CustomerMenu() {
   // Cart states
   const [cart, setCart] = useState({});
   const [cartOpen, setCartOpen] = useState(false);
-  const [tableNumber, setTableNumber] = useState(tableParam);
+  // Retrieve secure, locked table number from sessionStorage if exists
+  const getInitialTable = () => {
+    const sessionKey = `table_num_${slug}`;
+    const stored = sessionStorage.getItem(sessionKey);
+    if (stored) return stored;
+    
+    // Otherwise use URL query param and lock it
+    if (tableParam) {
+      sessionStorage.setItem(sessionKey, tableParam);
+      return tableParam;
+    }
+    return '';
+  };
+
+  const initialTable = getInitialTable();
+  const [tableNumber, setTableNumber] = useState(initialTable);
+  const [tableConfirmed, setTableConfirmed] = useState(!!initialTable);
   const [specialInstructions, setSpecialInstructions] = useState('');
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [placedOrderDetails, setPlacedOrderDetails] = useState(null);
@@ -237,7 +274,52 @@ export default function CustomerMenu() {
   const [tableModalInput, setTableModalInput] = useState('');
   const [tableModalVisible, setTableModalVisible] = useState(false);
   const [tableModalError, setTableModalError] = useState('');
+  const [gridTransposed, setGridTransposed] = useState(false);
   const [tableCheckingOccupancy, setTableCheckingOccupancy] = useState(false);
+  const [occupiedTables, setOccupiedTables] = useState([]);
+  const [loadingOccupiedTables, setLoadingOccupiedTables] = useState(false);
+
+  // Fetch occupied tables list when modal opens (with robust fallback to parallel check-table requests)
+  useEffect(() => {
+    if (tableModalOpen && slug) {
+      async function fetchOccupied() {
+        setLoadingOccupiedTables(true);
+        let success = false;
+        try {
+          const res = await api.get(`/orders/occupied?slug=${encodeURIComponent(slug)}`);
+          if (res && res.occupiedTables) {
+            setOccupiedTables(res.occupiedTables.map(t => t.toString().trim()));
+            success = true;
+          }
+        } catch (err) {
+          console.warn('GET /occupied failed, trying parallel check-table fallback:', err);
+        }
+
+        if (!success) {
+          try {
+            const tableList = getTablesArray();
+            const checkPromises = tableList.map(async (num) => {
+              try {
+                const checkRes = await api.get(
+                  `/orders/check-table?slug=${encodeURIComponent(slug)}&table=${num}`
+                );
+                return { num: num.toString(), occupied: !!checkRes.occupied };
+              } catch {
+                return { num: num.toString(), occupied: false };
+              }
+            });
+            const results = await Promise.all(checkPromises);
+            const occupied = results.filter(r => r.occupied).map(r => r.num);
+            setOccupiedTables(occupied);
+          } catch (fallbackErr) {
+            console.warn('Fallback table checks failed:', fallbackErr);
+          }
+        }
+        setLoadingOccupiedTables(false);
+      }
+      fetchOccupied();
+    }
+  }, [tableModalOpen, slug, getTablesArray]);
 
   // ── NEW: Cart add feedback animation key ───────────────────────────────────
   const [cartBump, setCartBump] = useState(false);
@@ -280,9 +362,11 @@ export default function CustomerMenu() {
     loadMenu();
   }, [slug]);
 
-  // ── Show table number modal after menu loads if no table in URL ────────────
+  // ── Show table number modal after menu loads if no table number set ────────────
   useEffect(() => {
-    if (!loading && !error && !tableParam) {
+    const sessionKey = `table_num_${slug}`;
+    const stored = sessionStorage.getItem(sessionKey);
+    if (!loading && !error && !stored) {
       // Small delay so the hero animation completes first
       const timer = setTimeout(() => {
         setTableModalOpen(true);
@@ -291,7 +375,7 @@ export default function CustomerMenu() {
       }, 600);
       return () => clearTimeout(timer);
     }
-  }, [loading, error, tableParam]);
+  }, [loading, error, slug]);
 
   // ── QR toast: show once per session when table comes from URL ─────────────
   useEffect(() => {
@@ -348,11 +432,17 @@ export default function CustomerMenu() {
     }
   }, [restaurant]);
 
-  // Sync table number query param if it changes
+  // Sync table number query param if it changes (only if not already locked/confirmed)
   const [prevTableParam, setPrevTableParam] = useState(tableParam);
   if (tableParam !== prevTableParam) {
     setPrevTableParam(tableParam);
-    setTableNumber(tableParam);
+    const sessionKey = `table_num_${slug}`;
+    const stored = sessionStorage.getItem(sessionKey);
+    if (!stored && tableParam) {
+      sessionStorage.setItem(sessionKey, tableParam);
+      setTableNumber(tableParam);
+      setTableConfirmed(true);
+    }
   }
 
   // ── Table modal confirm ────────────────────────────────────────────────────
@@ -388,6 +478,8 @@ export default function CustomerMenu() {
     }
 
     setTableNumber(val);
+    setTableConfirmed(true);
+    sessionStorage.setItem(`table_num_${slug}`, val);
     setTableModalError('');
     triggerHaptic('success');
     setTableModalVisible(false);
@@ -489,6 +581,7 @@ export default function CustomerMenu() {
       }
       const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodedText}`;
 
+      setTableConfirmed(true);
       const simulatedOrder = { table_number: tableNumber, items: cartItemsList, total_price: total };
       setPlacedOrderDetails(simulatedOrder);
       setCart({});
@@ -653,42 +746,195 @@ export default function CustomerMenu() {
                 : 'Enter your table number so the kitchen knows where to serve you.'}
             </p>
 
-            <input
-              type="number"
-              inputMode="numeric"
-              className="sheet-table-input"
-              placeholder="e.g. 5"
-              value={tableModalInput}
-              onChange={e => { setTableModalInput(e.target.value); setTableModalError(''); }}
-              onKeyDown={e => e.key === 'Enter' && confirmTableNumber()}
-              autoFocus
-              disabled={tableCheckingOccupancy}
-            />
+            {(() => {
+              const tables = getTablesArray();
+              const tablesCount = tables.length;
+              
+              // Best-fit Grid Columns Layout Algorithm
+              let bestCols = 4;
+              if (tablesCount <= 1) bestCols = 1;
+              else if (tablesCount === 2) bestCols = 2;
+              else if (tablesCount === 3) bestCols = 3;
+              else {
+                // Max 5 columns for compact/large lists, max 4 for smaller
+                const maxCols = tablesCount >= 10 ? 5 : 4;
+                let minEmpty = Infinity;
+                let bestRatioDiff = Infinity;
+                
+                for (let c = 2; c <= maxCols; c++) {
+                  const rows = Math.ceil(tablesCount / c);
+                  const empty = (c - (tablesCount % c)) % c;
+                  const ratioDiff = Math.abs(rows - c);
+                  
+                  if (empty < minEmpty) {
+                    minEmpty = empty;
+                    bestCols = c;
+                    bestRatioDiff = ratioDiff;
+                  } else if (empty === minEmpty) {
+                    if (ratioDiff < bestRatioDiff) {
+                      bestCols = c;
+                      bestRatioDiff = ratioDiff;
+                    } else if (ratioDiff === bestRatioDiff && c > bestCols) {
+                      bestCols = c; // Prefer wider layouts to prevent excessive scrolling
+                    }
+                  }
+                }
+              }
 
-            {/* Occupancy error block */}
-            {tableModalError && (
-              <div className="table-modal-error">
-                <span>{tableModalError}</span>
-              </div>
+              let sizeClass = 'medium';
+              if (tablesCount <= 4) sizeClass = 'large';
+              else if (tablesCount > 10) sizeClass = 'compact';
+
+              const cols = gridTransposed ? Math.ceil(tablesCount / bestCols) : bestCols;
+              const rows = gridTransposed ? bestCols : Math.ceil(tablesCount / bestCols);
+
+              const gridItems = gridTransposed 
+                ? (() => {
+                    const list = [];
+                    for (let r = 0; r < rows; r++) {
+                      for (let c = 0; c < cols; c++) {
+                        const origIdx = c * rows + r;
+                        if (origIdx < tablesCount) {
+                          list.push({ label: tables[origIdx], isSpacer: false });
+                        } else {
+                          list.push({ label: `spacer-${r}-${c}`, isSpacer: true });
+                        }
+                      }
+                    }
+                    return list;
+                  })()
+                : tables.map(t => ({ label: t, isSpacer: false }));
+
+              return (
+                <div className="sheet-tables-section">
+                  <div className="sheet-tables-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <span className="sheet-section-title" style={{ marginBottom: 0 }}>Quick Select Table</span>
+                    <button 
+                      type="button" 
+                      className="sheet-transpose-btn" 
+                      onClick={() => { triggerHaptic('light'); setGridTransposed(prev => !prev); }}
+                      title="Transpose Grid Layout (Rows to Columns)"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1px solid rgba(255, 255, 255, 0.1)',
+                        color: 'var(--text-dark-secondary)',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                      }}
+                    >
+                      <RefreshCw size={10} className={gridTransposed ? 'spin-once' : ''} />
+                      <span>{gridTransposed ? 'Horizontal' : 'Vertical'} Layout</span>
+                    </button>
+                  </div>
+                  {loadingOccupiedTables ? (
+                    <div className="sheet-tables-loading">
+                      <span className="sheet-checking-spinner" style={{ margin: '8px auto' }} />
+                      <span>Loading table statuses...</span>
+                    </div>
+                  ) : (
+                    <div 
+                      key={gridTransposed ? 'grid-transposed' : 'grid-normal'}
+                      className={`sheet-tables-grid ${sizeClass}`}
+                      style={{ gridTemplateColumns: `repeat(${cols}, 1fr)` }}
+                    >
+                      {gridItems.map((gridItem, idx) => {
+                        if (gridItem.isSpacer) {
+                          return <div key={gridItem.label} style={{ visibility: 'hidden', pointerEvents: 'none' }} />;
+                        }
+                        const tableLabel = gridItem.label;
+                        const isOccupied = occupiedTables.includes(tableLabel);
+                        const isSelected = tableModalInput === tableLabel;
+                        return (
+                          <button
+                            key={tableLabel}
+                            type="button"
+                            className={`sheet-table-grid-btn ${isOccupied ? 'occupied' : 'available'} ${isSelected ? 'selected' : ''}`}
+                            onClick={() => {
+                              if (!isTableChangeAllowed) {
+                                return;
+                              }
+                              if (!isOccupied) {
+                                triggerHaptic('light');
+                                setTableModalInput(tableLabel);
+                                setTableModalError('');
+                              } else {
+                                triggerHaptic('error');
+                                setTableModalError(`⛔ Table ${tableLabel} is occupied by another party.`);
+                              }
+                            }}
+                            style={!isTableChangeAllowed ? { cursor: 'default', pointerEvents: 'none' } : {}}
+                            disabled={tableCheckingOccupancy}
+                            title={isOccupied ? `Table ${tableLabel} is occupied` : `Table ${tableLabel}`}
+                          >
+                            <span className="table-btn-num">{isOccupied ? `🔒 ${tableLabel}` : tableLabel}</span>
+                            <span className="table-btn-status">
+                              {isOccupied ? 'Occupied' : 'Free'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {isTableChangeAllowed ? (
+              <>
+                <div className="sheet-divider-text">
+                  <span>OR ENTER TABLE MANUALLY</span>
+                </div>
+
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  className="sheet-table-input"
+                  placeholder="e.g. 5"
+                  value={tableModalInput}
+                  onChange={e => { setTableModalInput(e.target.value); setTableModalError(''); }}
+                  onKeyDown={e => e.key === 'Enter' && confirmTableNumber()}
+                  disabled={tableCheckingOccupancy}
+                />
+
+                {/* Occupancy error block */}
+                {tableModalError && (
+                  <div className="table-modal-error">
+                    <span>{tableModalError}</span>
+                  </div>
+                )}
+
+                <button
+                  className="sheet-confirm-btn"
+                  onClick={confirmTableNumber}
+                  disabled={tableCheckingOccupancy}
+                >
+                  {tableCheckingOccupancy ? (
+                    <><span className="sheet-checking-spinner" /> <span>Checking table...</span></>
+                  ) : (
+                    <><MapPin size={16} />
+                    <span>
+                      {tableModalInput.trim()
+                        ? (tableNumber ? `Change to Table ${tableModalInput.trim()}` : `Sit at Table ${tableModalInput.trim()}`)
+                        : (tableNumber ? 'Update Table' : 'Confirm Table')}
+                    </span></>
+                  )}
+                </button>
+              </>
+            ) : (
+              <button
+                className="sheet-confirm-btn"
+                onClick={skipTableModal}
+                style={{ background: 'rgba(255, 255, 255, 0.08)', color: '#ffffff', border: '1px solid rgba(255, 255, 255, 0.15)', marginTop: '20px' }}
+              >
+                <span>Close Preview</span>
+              </button>
             )}
-
-            <button
-              className="sheet-confirm-btn"
-              onClick={confirmTableNumber}
-              disabled={tableCheckingOccupancy}
-            >
-              {tableCheckingOccupancy ? (
-                <><span className="sheet-checking-spinner" /> <span>Checking table...</span></>
-              ) : (
-                <><MapPin size={16} />
-                <span>
-                  {tableModalInput.trim()
-                    ? (tableNumber ? `Change to Table ${tableModalInput.trim()}` : `Sit at Table ${tableModalInput.trim()}`)
-                    : (tableNumber ? 'Update Table' : 'Confirm Table')}
-                </span></>
-              )}
-            </button>
-
             {!tableNumber && (
               <button className="sheet-skip-btn" onClick={skipTableModal}>
                 Skip for now — I'll enter it later
@@ -707,6 +953,7 @@ export default function CustomerMenu() {
           setTableModalOpen(true);
           requestAnimationFrame(() => setTableModalVisible(true));
         }}
+        style={{ cursor: 'pointer' }}
       >
         <div className="qr-toast-icon-ring">
           <Check size={16} color="#fff" strokeWidth={3} />
@@ -747,10 +994,10 @@ export default function CustomerMenu() {
                 setTableModalOpen(true);
                 requestAnimationFrame(() => setTableModalVisible(true));
               }}
-              title={tableNumber ? 'Tap to change table number' : 'Set your table number'}
-              aria-label={tableNumber ? `Table ${tableNumber} — tap to change` : 'Set table number'}
+              title={tableNumber ? (isTableChangeAllowed ? 'Tap to change table number' : 'Tap to view table statuses') : 'Set your table number'}
+              aria-label={tableNumber ? `Table ${tableNumber}` : 'Set table number'}
             >
-              {tableNumber ? `📍 Table ${tableNumber} ✏️` : '📍 Set Table Number'}
+              {tableNumber ? `📍 Table ${tableNumber}${isTableChangeAllowed ? ' ✏️' : ''}` : '📍 Set Table Number'}
             </button>
           </div>
 
@@ -1158,13 +1405,27 @@ export default function CustomerMenu() {
                     type="number"
                     inputMode="numeric"
                     className={`como-form-input table-num-input ${!tableNumber ? 'input-required-highlight' : 'input-has-value'}`}
-                    placeholder="e.g. 5"
+                    placeholder={!isTableChangeAllowed ? "Scan QR Code" : "e.g. 5"}
                     value={tableNumber}
-                    onChange={(e) => setTableNumber(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setTableNumber(val);
+                      if (val) {
+                        sessionStorage.setItem(`table_num_${slug}`, val);
+                      } else {
+                        sessionStorage.removeItem(`table_num_${slug}`);
+                      }
+                    }}
+                    disabled={!isTableChangeAllowed}
                   />
                   {tableNumber
                     ? <span className="table-confirmed-tag">✓ Table {tableNumber}</span>
-                    : <span className="input-hint">Required to place order</span>
+                    : <span className="input-hint" style={!isTableChangeAllowed ? { color: 'var(--danger)', fontWeight: '600' } : {}}>
+                        {!isTableChangeAllowed 
+                          ? 'Please scan the table QR code' 
+                          : 'Required to place order'
+                        }
+                      </span>
                   }
                 </div>
               </div>
@@ -1460,6 +1721,189 @@ export default function CustomerMenu() {
           color: #fca5a5;
           line-height: 1.5;
           animation: fadeSlideUp 0.22s ease;
+        }
+
+        /* Quick Select Table Styles */
+        .sheet-tables-section {
+          width: 100%;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          margin-bottom: 6px;
+        }
+
+        .sheet-section-title {
+          font-size: 12px;
+          font-weight: 700;
+          color: #71717A;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          text-align: left;
+        }
+
+        .sheet-tables-loading {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 8px;
+          padding: 16px;
+          color: #71717A;
+          font-size: 13px;
+        }
+
+        .sheet-tables-grid {
+          display: grid;
+          width: 100%;
+          justify-content: center;
+        }
+
+        /* Large Grid Sizing (1-4 tables) */
+        .sheet-tables-grid.large {
+          grid-template-columns: repeat(2, 1fr);
+          gap: 14px;
+        }
+        .sheet-tables-grid.large .sheet-table-grid-btn {
+          padding: 16px 10px;
+          border-radius: 16px;
+        }
+        .sheet-tables-grid.large .sheet-table-grid-btn .table-btn-num {
+          font-size: 24px;
+          font-weight: 800;
+          color: #ffffff;
+          line-height: 1.2;
+        }
+        .sheet-tables-grid.large .sheet-table-grid-btn .table-btn-status {
+          font-size: 11px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-top: 4px;
+        }
+
+        /* Medium Grid Sizing (5-10 tables) */
+        .sheet-tables-grid.medium {
+          grid-template-columns: repeat(4, 1fr);
+          gap: 10px;
+        }
+        .sheet-tables-grid.medium .sheet-table-grid-btn {
+          padding: 12px 6px;
+          border-radius: 12px;
+        }
+        .sheet-tables-grid.medium .sheet-table-grid-btn .table-btn-num {
+          font-size: 18px;
+          font-weight: 800;
+          color: #ffffff;
+          line-height: 1.2;
+        }
+        .sheet-tables-grid.medium .sheet-table-grid-btn .table-btn-status {
+          font-size: 9px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-top: 2px;
+        }
+
+        /* Compact Grid Sizing (11+ tables) */
+        .sheet-tables-grid.compact {
+          grid-template-columns: repeat(4, 1fr);
+          gap: 8px;
+        }
+        .sheet-tables-grid.compact .sheet-table-grid-btn {
+          padding: 8px 4px;
+          border-radius: 10px;
+        }
+        .sheet-tables-grid.compact .sheet-table-grid-btn .table-btn-num {
+          font-size: 14px;
+          font-weight: 800;
+          color: #ffffff;
+          line-height: 1.2;
+        }
+        .sheet-tables-grid.compact .sheet-table-grid-btn .table-btn-status {
+          font-size: 8px;
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-top: 2px;
+        }
+
+        /* Base Grid Button Style */
+        .sheet-table-grid-btn {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          border: 1.5px solid rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.02);
+          cursor: pointer;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Available/Free Style */
+        .sheet-table-grid-btn.available {
+          border-color: rgba(16, 185, 129, 0.15);
+          background: rgba(16, 185, 129, 0.02);
+        }
+        .sheet-table-grid-btn.available .table-btn-status {
+          color: #10B981;
+        }
+        .sheet-table-grid-btn.available:hover {
+          border-color: rgba(16, 185, 129, 0.4);
+          background: rgba(16, 185, 129, 0.08);
+          transform: translateY(-2px);
+        }
+
+        /* Occupied Style */
+        .sheet-table-grid-btn.occupied {
+          border: 1.5px dashed rgba(239, 68, 68, 0.25);
+          background: rgba(239, 68, 68, 0.04);
+          cursor: not-allowed;
+          opacity: 0.35;
+        }
+        .sheet-table-grid-btn.occupied .table-btn-num {
+          color: rgba(255, 255, 255, 0.25);
+          text-decoration: line-through;
+        }
+        .sheet-table-grid-btn.occupied .table-btn-status {
+          color: #f87171;
+          font-weight: 700;
+        }
+
+        /* Selected Style */
+        .sheet-table-grid-btn.available.selected {
+          border-color: #FF5E00;
+          background: rgba(255, 94, 0, 0.12);
+          box-shadow: 0 0 12px rgba(255, 94, 0, 0.25);
+          transform: scale(1.05);
+        }
+        .sheet-table-grid-btn.available.selected .table-btn-num {
+          color: #FF5E00;
+        }
+        .sheet-table-grid-btn.available.selected .table-btn-status {
+          color: #FF5E00;
+          font-weight: 700;
+        }
+
+        /* Manual Input Divider */
+        .sheet-divider-text {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          margin: 6px 0;
+        }
+        .sheet-divider-text::before,
+        .sheet-divider-text::after {
+          content: "";
+          flex: 1;
+          height: 1px;
+          background: rgba(255, 255, 255, 0.08);
+        }
+        .sheet-divider-text span {
+          padding: 0 12px;
+          font-size: 10px;
+          font-weight: 700;
+          color: #52525B;
+          letter-spacing: 0.1em;
+          white-space: nowrap;
         }
 
         /* Spinner inside confirm button while checking */

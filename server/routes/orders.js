@@ -130,6 +130,61 @@ router.post('/', async (req, res) => {
   }
 });
 
+// @route   GET /api/orders/occupied
+// @desc    Get all occupied tables today for a restaurant slug
+// @access  Public (called by customer to see occupied tables)
+// @query   slug
+router.get('/occupied', async (req, res) => {
+  const { slug } = req.query;
+
+  if (!slug) {
+    return res.status(400).json({ error: 'slug is required' });
+  }
+
+  try {
+    // Resolve restaurant from slug
+    const { data: restaurant, error: restError } = await supabase
+      .from('profiles')
+      .select('id')
+      .ilike('slug', slug.trim())
+      .single();
+
+    if (restError || !restaurant) {
+      return res.status(404).json({ error: 'Restaurant not found' });
+    }
+
+    // Check for active unpaid orders on all tables today
+    const { data: existingOrders, error: findError } = await supabase
+      .from('orders')
+      .select('table_number, status, created_at')
+      .eq('restaurant_id', restaurant.id)
+      .eq('payment_status', 'Unpaid');
+
+    if (findError) throw findError;
+
+    const isToday = (iso) => {
+      if (!iso) return false;
+      const d = new Date(iso);
+      const t = new Date();
+      return d.getDate() === t.getDate() &&
+             d.getMonth() === t.getMonth() &&
+             d.getFullYear() === t.getFullYear();
+    };
+
+    const activeOrders = (existingOrders || []).filter(
+      o => o.status !== 'Cancelled' && isToday(o.created_at)
+    );
+
+    // Unique table numbers that are occupied
+    const occupiedTables = [...new Set(activeOrders.map(o => o.table_number.toString().trim()))];
+
+    res.json({ occupiedTables });
+  } catch (err) {
+    console.error('Fetch occupied tables error:', err);
+    res.json({ occupiedTables: [] });
+  }
+});
+
 // @route   GET /api/orders/check-table
 // @desc    Check if a table is currently occupied (has active unpaid order today)
 // @access  Public (called by customer before table change)
@@ -277,6 +332,11 @@ router.put('/:id/payment', requireAuth, async (req, res) => {
       payment_method: paymentStatus === 'Paid' ? paymentMethod : null
     };
 
+    // Mark order status as Completed when billed (Paid)
+    if (paymentStatus === 'Paid') {
+      updatePayload.status = 'Completed';
+    }
+
     const { data: updatedOrder, error: updateError } = await supabase
       .from('orders')
       .update(updatePayload)
@@ -289,6 +349,94 @@ router.put('/:id/payment', requireAuth, async (req, res) => {
   } catch (err) {
     console.error('Update order payment error:', err);
     res.status(500).json({ error: 'Failed to update order payment' });
+  }
+});
+
+// @route   GET /api/orders/analytics
+// @desc    Get per-dish sales analytics (day / month / year / all-time)
+// @access  Private
+router.get('/analytics', requireAuth, async (req, res) => {
+  try {
+    const { data: allOrders, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('restaurant_id', req.user.id);
+
+    if (error) throw error;
+
+    // Exclude cancelled orders in JS — avoids relying on .neq() in mock DB
+    const orders = (allOrders || []).filter(o => o.status !== 'Cancelled');
+
+    const now = new Date();
+    const todayStr = now.toDateString();
+    const thisMonth = now.getMonth();
+    const thisYear = now.getFullYear();
+
+    // Accumulate per-dish stats and summary revenue
+    const dishMap = {};
+    let totalRevenueToday = 0;
+    let totalRevenueMonth = 0;
+    let totalRevenueYear = 0;
+    let totalRevenueAllTime = 0;
+
+    orders.forEach(order => {
+      const orderDate = order.created_at ? new Date(order.created_at) : null;
+      const isToday = orderDate && orderDate.toDateString() === todayStr;
+      const isMonth = orderDate && orderDate.getMonth() === thisMonth && orderDate.getFullYear() === thisYear;
+      const isYear  = orderDate && orderDate.getFullYear() === thisYear;
+
+      const orderTotal = parseFloat(order.total_price) || 0;
+      totalRevenueAllTime += orderTotal;
+      if (isToday) totalRevenueToday += orderTotal;
+      if (isMonth) totalRevenueMonth += orderTotal;
+      if (isYear)  totalRevenueYear += orderTotal;
+
+      (order.items || []).forEach(item => {
+        const key         = (item.name || 'Unknown').trim().toLowerCase();
+        const displayName = (item.name || 'Unknown').trim();
+        const qty         = parseInt(item.quantity, 10) || 1;
+        const price       = parseFloat(item.price) || 0;
+
+        if (!dishMap[key]) {
+          dishMap[key] = {
+            name: displayName,
+            totalQty: 0,
+            dailyQty: 0,
+            monthlyQty: 0,
+            yearlyQty: 0,
+            totalRevenue: 0,
+            orderCount: 0
+          };
+        }
+
+        dishMap[key].totalQty     += qty;
+        dishMap[key].totalRevenue += qty * price;
+        dishMap[key].orderCount   += 1;
+        if (isToday) dishMap[key].dailyQty   += qty;
+        if (isMonth) dishMap[key].monthlyQty += qty;
+        if (isYear)  dishMap[key].yearlyQty  += qty;
+      });
+    });
+
+    // Build summary totals
+    const dishes = Object.values(dishMap).sort((a, b) => b.totalQty - a.totalQty);
+
+    const summary = {
+      uniqueDishes:        dishes.length,
+      totalSoldToday:      dishes.reduce((s, d) => s + d.dailyQty,    0),
+      totalSoldMonth:      dishes.reduce((s, d) => s + d.monthlyQty,  0),
+      totalSoldYear:       dishes.reduce((s, d) => s + d.yearlyQty,   0),
+      totalSoldAllTime:    dishes.reduce((s, d) => s + d.totalQty,    0),
+      totalRevenueToday,
+      totalRevenueMonth,
+      totalRevenueYear,
+      totalRevenueAllTime
+    };
+
+    res.json({ dishes, summary });
+  } catch (err) {
+    console.error('Fetch dish analytics error:', err);
+    res.status(500).json({ error: 'Failed to fetch dish analytics' });
   }
 });
 

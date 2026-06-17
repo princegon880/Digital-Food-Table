@@ -10,7 +10,9 @@ import {
   Menu,
   X,
   Activity,
-  ClipboardList
+  ClipboardList,
+  LayoutGrid,
+  BarChart2
 } from 'lucide-react';
 import { useAuth } from '@clerk/clerk-react';
 import { api } from '../utils/api';
@@ -67,7 +69,9 @@ function BaseNavbar({ signOut }) {
   const menuItems = [
     { name: 'Overview', path: '/dashboard', icon: LayoutDashboard },
     { name: 'Live Kitchen', path: '/dashboard/live', icon: Activity, isLive: true },
+    { name: 'Table View', path: '/dashboard/tables', icon: LayoutGrid },
     { name: 'Order History', path: '/dashboard/orders', icon: ClipboardList },
+    { name: 'Dish Analytics', path: '/dashboard/analytics', icon: BarChart2 },
     { name: 'Menu Builder', path: '/dashboard/menu', icon: UtensilsCrossed },
     { name: 'QR Code Generator', path: '/dashboard/qr', icon: QrCode },
     { name: 'Settings', path: '/dashboard/settings', icon: Settings },
@@ -166,6 +170,7 @@ function BaseNavbar({ signOut }) {
           border-radius: 0;
           border-right: 1px solid var(--border-dark);
           z-index: 100;
+          overflow: hidden;
         }
 
         .nav-brand {
@@ -255,6 +260,11 @@ function BaseNavbar({ signOut }) {
           flex-direction: column;
           gap: 8px;
           flex-grow: 1;
+          overflow-y: auto;
+          overflow-x: hidden;
+          min-height: 0;
+          padding-right: 4px;
+          margin-bottom: 16px;
         }
 
         .nav-link-item {
